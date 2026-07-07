@@ -1,0 +1,9 @@
+// Copy this file to environment.ts and fill in your Supabase credentials.
+// environment.ts is gitignored — never commit actual credentials.
+// SUPABASE_ANON_KEY is the public anon key (safe client-side, protected by RLS).
+// Never use the service_role key on the client.
+export const environment = {
+  production: false,
+  supabaseUrl: 'https://YOUR_PROJECT_ID.supabase.co',
+  supabaseAnonKey: 'YOUR_SUPABASE_ANON_KEY',
+};

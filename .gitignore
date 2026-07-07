@@ -47,3 +47,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Local environment (copy from environment.ts.example and fill in)
+src/environments/environment.ts

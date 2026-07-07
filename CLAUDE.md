@@ -23,17 +23,12 @@
 
 ## Variables d'environnement
 
-Les credentials Supabase se configurent dans `src/environments/environment.ts` (non committé avec des valeurs réelles).
-Voir `.env.example` pour la liste des variables nécessaires.
+`environment.ts` est **gitignorée**. Pour configurer Supabase en local :
+1. `cp src/environments/environment.ts.example src/environments/environment.ts`
+2. Renseigner `supabaseUrl` et `supabaseAnonKey` (clé anon publique depuis Supabase Dashboard)
 
-```typescript
-// src/environments/environment.ts
-export const environment = {
-  production: false,
-  supabaseUrl: 'https://YOUR_PROJECT.supabase.co',
-  supabaseAnonKey: 'YOUR_ANON_KEY',
-};
-```
+En production (Vercel) : injecter `SUPABASE_URL` et `SUPABASE_ANON_KEY` comme variables d'environnement
+et générer `environment.prod.ts` dans le build script avant `ng build`.
 
 ## Conventions Git
 
