@@ -7,7 +7,7 @@
 - **State** : signals partout (`signal()`, `computed()`, `effect()`) — pas de BehaviorSubject côté UI
 - **Forms** : Signal Forms (`FormField`, `SignalFormControl`) — pas de Reactive Forms classiques
 - **Data fetching** : `resource()` / `httpResource()` — pas de pipe `async`
-- **Change detection** : zoneless — ne pas déclarer `changeDetection` explicitement dans les composants (Angular 22 gère par défaut)
+- **Change detection** : zoneless + `ChangeDetectionStrategy.OnPush` explicite sur tous les composants
 - **Control flow** : `@if`, `@for`, `@defer` uniquement — jamais `*ngIf`, `*ngFor`
 - **UI** : Angular Material M3, dark par défaut — l'écran principal est en CSS custom (hors Material)
 - **Backend** : Supabase (auth, RLS par foyer, Realtime)
@@ -16,7 +16,7 @@
 
 ## Conventions de code
 
-- Composants standalone, `OnPush` implicite (pas de déclaration explicite)
+- Composants standalone, `ChangeDetectionStrategy.OnPush` explicite sur chaque composant
 - `inject()` function obligatoire — pas de constructeur DI
 - Interfaces pour les modèles de données, pas de `any`
 - Nommage fichiers : `kebab-case.component.ts`
