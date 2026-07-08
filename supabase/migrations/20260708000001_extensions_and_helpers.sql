@@ -22,3 +22,18 @@ as $$
       and user_id = auth.uid()
   );
 $$;
+
+-- RLS helper: avoids repeating the baby→household join in every event table policy
+create or replace function is_baby_household_member(bid uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1
+    from babies b
+    where b.id = bid
+      and is_household_member(b.household_id)
+  );
+$$;

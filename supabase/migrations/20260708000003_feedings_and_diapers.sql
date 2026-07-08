@@ -16,34 +16,15 @@ alter table feedings enable row level security;
 
 create policy "household members can select feedings"
   on feedings for select
-  using (
-    exists (
-      select 1 from babies b
-      where b.id = baby_id
-        and is_household_member(b.household_id)
-    )
-  );
+  using (is_baby_household_member(baby_id));
 
 create policy "household members can insert feedings"
   on feedings for insert
-  with check (
-    created_by = auth.uid()
-    and exists (
-      select 1 from babies b
-      where b.id = baby_id
-        and is_household_member(b.household_id)
-    )
-  );
+  with check (created_by = auth.uid() and is_baby_household_member(baby_id));
 
 create policy "household members can update feedings"
   on feedings for update
-  using (
-    exists (
-      select 1 from babies b
-      where b.id = baby_id
-        and is_household_member(b.household_id)
-    )
-  );
+  using (is_baby_household_member(baby_id));
 
 -- diapers
 create table diapers (
@@ -61,21 +42,8 @@ alter table diapers enable row level security;
 
 create policy "household members can select diapers"
   on diapers for select
-  using (
-    exists (
-      select 1 from babies b
-      where b.id = baby_id
-        and is_household_member(b.household_id)
-    )
-  );
+  using (is_baby_household_member(baby_id));
 
 create policy "household members can insert diapers"
   on diapers for insert
-  with check (
-    created_by = auth.uid()
-    and exists (
-      select 1 from babies b
-      where b.id = baby_id
-        and is_household_member(b.household_id)
-    )
-  );
+  with check (created_by = auth.uid() and is_baby_household_member(baby_id));
