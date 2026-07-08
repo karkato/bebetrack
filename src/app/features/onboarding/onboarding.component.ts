@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormField, form, required, minLength } from '@angular/forms';
+import { FormField, form, schema, required, minLength } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -103,10 +103,13 @@ export class OnboardingComponent {
 
   private readonly model = signal<CreateHouseholdModel>({ name: '' });
 
-  readonly householdForm = form(this.model, (f) => {
-    required(f.name);
-    minLength(f.name, 2);
-  });
+  readonly householdForm = form(
+    this.model,
+    schema<CreateHouseholdModel>(f => {
+      required(f.name);
+      minLength(f.name, 2);
+    }),
+  );
 
   async onCreate(event: Event): Promise<void> {
     event.preventDefault();

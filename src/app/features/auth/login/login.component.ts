@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { FormField, FormRoot, form, required, email as emailValidator } from '@angular/forms';
+import { FormField, FormRoot, form, schema, required, email as emailValidator } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -118,11 +118,14 @@ export class LoginComponent {
 
   private readonly model = signal<LoginModel>({ email: '', password: '' });
 
-  readonly loginForm = form(this.model, (f) => {
-    required(f.email);
-    emailValidator(f.email);
-    required(f.password);
-  });
+  readonly loginForm = form(
+    this.model,
+    schema<LoginModel>(f => {
+      required(f.email);
+      emailValidator(f.email);
+      required(f.password);
+    }),
+  );
 
   async onSubmit(event: Event): Promise<void> {
     event.preventDefault();

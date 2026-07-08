@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, UrlTree } from '@angular/router';
 import { signal } from '@angular/core';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { authGuard } from './auth.guard';
 import { SessionService } from './session.service';
 
@@ -24,7 +24,7 @@ describe('authGuard', () => {
     });
 
     const result = TestBed.runInInjectionContext(() =>
-      authGuard({ path: '' } as never, [{ path: 'dashboard' } as never]),
+      authGuard({ path: '' } as never, [{ path: 'dashboard' } as never], null as never),
     );
 
     expect(result).toBe(true);
@@ -36,7 +36,7 @@ describe('authGuard', () => {
     });
 
     const result = TestBed.runInInjectionContext(() =>
-      authGuard({ path: '' } as never, [{ path: 'dashboard' } as never]),
+      authGuard({ path: '' } as never, [{ path: 'dashboard' } as never], null as never),
     ) as UrlTree;
 
     const router = TestBed.inject(Router);

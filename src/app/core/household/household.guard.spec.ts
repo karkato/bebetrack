@@ -23,7 +23,7 @@ describe('householdGuard', () => {
       useValue: makeHouseholdServiceMock(true),
     });
 
-    const result = TestBed.runInInjectionContext(() => householdGuard({} as never, []));
+    const result = TestBed.runInInjectionContext(() => householdGuard({} as never, [], null as never));
 
     expect(result).toBe(true);
   });
@@ -33,7 +33,7 @@ describe('householdGuard', () => {
       useValue: makeHouseholdServiceMock(false),
     });
 
-    const result = TestBed.runInInjectionContext(() => householdGuard({} as never, [])) as UrlTree;
+    const result = TestBed.runInInjectionContext(() => householdGuard({} as never, [], null as never)) as UrlTree;
     const router = TestBed.inject(Router);
 
     expect(result).toBeInstanceOf(UrlTree);
