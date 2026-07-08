@@ -7,18 +7,18 @@
  *   - User B must NOT be a member of user A's household
  *
  * Usage:
- *   npx tsx scripts/test-rls.ts
+ *   npm run test:rls
  *
- * Required env vars:
- *   SUPABASE_URL, SUPABASE_ANON_KEY,
- *   USER_A_EMAIL, USER_A_PASSWORD,
- *   USER_B_EMAIL, USER_B_PASSWORD
+ * Supabase credentials are read from src/environments/environment.ts (already filled in locally).
+ * Only test user credentials need to be in .env.test:
+ *   USER_A_EMAIL, USER_A_PASSWORD, USER_B_EMAIL, USER_B_PASSWORD
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { environment } from '../src/environments/environment.js';
 
-const url  = process.env['SUPABASE_URL']!;
-const anon = process.env['SUPABASE_ANON_KEY']!;
+const url  = environment.supabaseUrl;
+const anon = environment.supabaseAnonKey;
 
 async function run() {
   const clientA = createClient(url, anon);

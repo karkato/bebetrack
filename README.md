@@ -81,9 +81,9 @@ Migrations are versioned SQL files in `supabase/migrations/`. Apply them **in or
 ### Test RLS isolation
 
 ```bash
-SUPABASE_URL=... SUPABASE_ANON_KEY=... \
-USER_A_EMAIL=... USER_A_PASSWORD=... \
-USER_B_EMAIL=... USER_B_PASSWORD=... \
+cp .env.test.example .env.test
+# Fill in USER_A_EMAIL/PASSWORD and USER_B_EMAIL/PASSWORD in .env.test
+# (Supabase URL and anon key are read from src/environments/environment.ts)
 npm run test:rls
 ```
 
