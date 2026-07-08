@@ -7,6 +7,10 @@ create table households (
 
 alter table households enable row level security;
 
+create policy "authenticated users can create a household"
+  on households for insert
+  with check (auth.uid() is not null);
+
 create policy "household members can select their household"
   on households for select
   using (is_household_member(id));
@@ -32,9 +36,8 @@ create policy "members can view their household members"
   on household_members for select
   using (is_household_member(household_id));
 
-create policy "members can insert themselves into a household"
-  on household_members for insert
-  with check (user_id = auth.uid());
+-- INSERT is intentionally restricted: members are added server-side via RPC (ticket 3 onboarding flow).
+-- Direct client inserts are blocked to prevent inter-household escalation.
 
 -- babies
 create table babies (
