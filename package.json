@@ -9,7 +9,8 @@
     "test": "ng test",
     "lint": "ng lint",
     "db:push": "supabase db push",
-    "db:reset": "supabase db reset"
+    "db:reset": "supabase db reset",
+    "test:rls": "tsx scripts/test-rls.ts"
   },
   "private": true,
   "packageManager": "npm@11.9.0",
@@ -38,6 +39,7 @@
     "eslint": "^9.39.4",
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
+    "tsx": "^4.23.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.63.0",
     "vitest": "^4.0.8"
