@@ -9,8 +9,8 @@
 
 do $$
 declare
-  parent_a_id  uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; -- TODO: replace with Parent A UUID
-  parent_b_id  uuid := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; -- TODO: replace with Parent B UUID
+  parent_a_id  uuid := '1a6ba102-8483-4f27-8f6a-5feb958cd9b9';
+  parent_b_id  uuid := 'ac79f8ac-5dc5-45fd-b39e-126f28c2b5f7';
   household_id uuid := 'cccccccc-cccc-cccc-cccc-cccccccccccc';
   baby_id      uuid := 'dddddddd-dddd-dddd-dddd-dddddddddddd';
   item_diapers uuid := 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
@@ -19,6 +19,8 @@ declare
   mv_diapers   uuid := '22222222-2222-2222-2222-222222222222';
   mv_milk      uuid := '33333333-3333-3333-3333-333333333333';
   mv_wipes     uuid := '44444444-4444-4444-4444-444444444444';
+  -- Second household for RLS isolation testing: only parent A is a member
+  isolation_household_id uuid := '55555555-5555-5555-5555-555555555555';
 begin
 
   -- Household
@@ -54,5 +56,14 @@ begin
     (mv_milk,    item_milk,     3, 'restock', parent_a_id),
     (mv_wipes,   item_wipes,    4, 'restock', parent_a_id)
   on conflict (id) do nothing;
+
+  -- RLS isolation household: only parent A is a member — used by test:rls to verify B cannot cross households
+  insert into households (id, name)
+  values (isolation_household_id, '__rls_isolation_test__')
+  on conflict (id) do nothing;
+
+  insert into household_members (household_id, user_id, role)
+  values (isolation_household_id, parent_a_id, 'parent')
+  on conflict do nothing;
 
 end $$;
