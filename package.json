@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
-    "test:rls": "tsx scripts/test-rls.ts"
+    "test:rls": "node --env-file=.env.test --import tsx/esm scripts/test-rls.ts"
   },
   "private": true,
   "packageManager": "npm@11.9.0",
