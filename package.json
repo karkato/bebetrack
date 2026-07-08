@@ -8,8 +8,6 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
-    "db:push": "supabase db push",
-    "db:reset": "supabase db reset",
     "test:rls": "tsx scripts/test-rls.ts"
   },
   "private": true,
