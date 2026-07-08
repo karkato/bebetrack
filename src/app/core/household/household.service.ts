@@ -18,12 +18,18 @@ export class HouseholdService {
   }
 
   async loadCurrentHousehold(): Promise<void> {
+    const userId = this.session.user()?.id;
+    if (!userId) {
+      this._household.set(null);
+      return;
+    }
     const { data } = await this.supabase.client
       .from('households')
-      .select('*')
+      .select('*, household_members!inner(user_id)')
+      .eq('household_members.user_id', userId)
       .limit(1)
       .maybeSingle();
-    this._household.set(data ?? null);
+    this._household.set(data ? { id: data.id, name: data.name, created_at: data.created_at } : null);
   }
 
   async createHousehold(name: string): Promise<string> {

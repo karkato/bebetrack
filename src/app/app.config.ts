@@ -25,8 +25,12 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(async () => {
       const session = inject(SessionService);
       const household = inject(HouseholdService);
-      await session.initialize();
-      await household.initialize();
+      try {
+        await session.initialize();
+        await household.initialize();
+      } catch (err) {
+        console.error('[AppInit] Hydration failed — starting in unauthenticated state', err);
+      }
     }),
   ],
 };

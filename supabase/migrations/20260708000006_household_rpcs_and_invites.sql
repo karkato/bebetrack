@@ -91,6 +91,9 @@ begin
     return invite.household_id;
   end if;
 
+  -- Lock the household row to prevent concurrent accepts from racing past the member limit
+  perform 1 from public.households where id = invite.household_id for update;
+
   -- Limite 2 parents par foyer
   select count(*) into member_count
   from public.household_members

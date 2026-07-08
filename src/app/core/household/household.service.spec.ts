@@ -13,14 +13,18 @@ function makeSupabaseMock() {
   const rpc = vi.fn();
   const maybeSingle = vi.fn();
   const limit = vi.fn(() => ({ maybeSingle }));
-  const select = vi.fn(() => ({ limit }));
+  const eq = vi.fn(() => ({ limit }));
+  const select = vi.fn(() => ({ eq }));
   const from = vi.fn(() => ({ select }));
 
   return { client: { from, rpc } };
 }
 
-function makeSessionMock(authenticated = true) {
-  return { isAuthenticated: signal(authenticated) } as unknown as SessionService;
+function makeSessionMock(authenticated = true, userId = 'user-1') {
+  return {
+    isAuthenticated: signal(authenticated),
+    user: signal(authenticated ? { id: userId } : null),
+  } as unknown as SessionService;
 }
 
 describe('HouseholdService', () => {
@@ -44,7 +48,7 @@ describe('HouseholdService', () => {
   });
 
   it('initialize() loads household when authenticated', async () => {
-    supabaseMock.client.from().select().limit().maybeSingle.mockResolvedValue({
+    supabaseMock.client.from().select().eq().limit().maybeSingle.mockResolvedValue({
       data: mockHousehold,
       error: null,
     });
@@ -68,7 +72,7 @@ describe('HouseholdService', () => {
 
   it('createHousehold() calls RPC and updates the signal', async () => {
     supabaseMock.client.rpc.mockResolvedValue({ data: 'h2', error: null });
-    supabaseMock.client.from().select().limit().maybeSingle.mockResolvedValue({
+    supabaseMock.client.from().select().eq().limit().maybeSingle.mockResolvedValue({
       data: { ...mockHousehold, id: 'h2' },
       error: null,
     });
