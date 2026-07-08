@@ -70,14 +70,15 @@ create or replace function update_stock_quantity()
 returns trigger
 language plpgsql
 security definer
+set search_path = ''
 as $$
 begin
   if (TG_OP = 'INSERT') then
-    update stock_items set quantity = quantity + NEW.delta where id = NEW.stock_item_id;
+    update public.stock_items set quantity = quantity + NEW.delta where id = NEW.stock_item_id;
   elsif (TG_OP = 'DELETE') then
-    update stock_items set quantity = quantity - OLD.delta where id = OLD.stock_item_id;
+    update public.stock_items set quantity = quantity - OLD.delta where id = OLD.stock_item_id;
   elsif (TG_OP = 'UPDATE') then
-    update stock_items set quantity = quantity - OLD.delta + NEW.delta where id = NEW.stock_item_id;
+    update public.stock_items set quantity = quantity - OLD.delta + NEW.delta where id = NEW.stock_item_id;
   end if;
   return null;
 end;

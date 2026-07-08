@@ -9,31 +9,35 @@ create type stock_movement_reason as enum ('manual', 'diaper_auto', 'restock');
 
 -- RLS helper: avoids infinite recursion when policies query household_members
 -- SECURITY DEFINER bypasses RLS on the internal query
+-- search_path is pinned to '' to prevent table shadowing attacks
 create or replace function is_household_member(hid uuid)
 returns boolean
 language sql
 security definer
 stable
+set search_path = ''
 as $$
   select exists (
     select 1
-    from household_members
+    from public.household_members
     where household_id = hid
       and user_id = auth.uid()
   );
 $$;
 
 -- RLS helper: avoids repeating the baby→household join in every event table policy
+-- search_path is pinned to '' to prevent table shadowing attacks
 create or replace function is_baby_household_member(bid uuid)
 returns boolean
 language sql
 security definer
 stable
+set search_path = ''
 as $$
   select exists (
     select 1
-    from babies b
+    from public.babies b
     where b.id = bid
-      and is_household_member(b.household_id)
+      and public.is_household_member(b.household_id)
   );
 $$;
