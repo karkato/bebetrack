@@ -6,6 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { MatBottomSheet, MatBottomSheetModule } from '@angular/material/bottom-sheet';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { BabyService } from '../../core/baby/baby.service';
@@ -13,13 +14,14 @@ import { DiaperService } from '../../core/diaper/diaper.service';
 import { DiaperKind } from '../../core/diaper/diaper.models';
 import { FeedingService } from '../../core/feeding/feeding.service';
 import { FeedingPreference } from '../../core/baby/baby.models';
+import { FeedingSheetComponent, FeedingSheetData } from '../feeding/feeding-sheet.component';
 import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
 
 @Component({
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatSnackBarModule],
+  imports: [MatButtonModule, MatSnackBarModule, MatBottomSheetModule, FeedingSheetComponent],
   template: `
     @if (baby.currentBaby() === null) {
       <div class="empty-state">
@@ -99,7 +101,7 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
           </button>
         </section>
 
-        <button class="feeding-btn" disabled>
+        <button class="feeding-btn" (click)="openFeedingSheet()">
           <span class="btn-icon">🍼</span>
           <span class="btn-label">Tétée</span>
         </button>
@@ -297,6 +299,7 @@ export class HomeComponent {
   readonly feedingService = inject(FeedingService);
   readonly diaperService = inject(DiaperService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly bottomSheet = inject(MatBottomSheet);
   private readonly destroyRef = inject(DestroyRef);
 
   // ── Timer (1-minute tick for elapsed display) ──
@@ -310,6 +313,11 @@ export class HomeComponent {
   // ── Last feeding label ──
   readonly lastFeedingLabel = computed(() => {
     const now = new Date(this.now()); // lire now() en premier — dépendance inconditionnelle
+    const ongoing = this.feedingService.ongoingFeeding.value();
+    if (ongoing) {
+      const elapsed = formatElapsed(new Date(ongoing.started_at), now);
+      return `Tétée en cours depuis ${elapsed}`;
+    }
     const feeding = this.feedingService.lastFeeding.value();
     if (!feeding) return 'Aucune tétée enregistrée';
     const typeLabel = feedingTypeLabel(feeding.type);
@@ -341,6 +349,24 @@ export class HomeComponent {
     } finally {
       this.babyFormLoading.set(false);
     }
+  }
+
+  // ── Feeding sheet ──
+  protected openFeedingSheet(): void {
+    const baby = this.baby.currentBaby();
+    if (!baby) return;
+    const ref = this.bottomSheet.open(FeedingSheetComponent, {
+      data: {
+        ongoingFeeding: this.feedingService.ongoingFeeding.value() ?? null,
+        lastFeeding: this.feedingService.lastFeeding.value() ?? null,
+        babyId: baby.id,
+        preference: baby.feeding_preference,
+      } satisfies FeedingSheetData,
+    });
+    ref.afterDismissed().subscribe(() => {
+      this.feedingService.lastFeeding.reload();
+      this.feedingService.ongoingFeeding.reload();
+    });
   }
 
   // ── Diaper recording with undo ──

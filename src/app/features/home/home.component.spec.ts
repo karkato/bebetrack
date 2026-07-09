@@ -5,6 +5,7 @@ import { HomeComponent } from './home.component';
 import { BabyService } from '../../core/baby/baby.service';
 import { DiaperService } from '../../core/diaper/diaper.service';
 import { FeedingService } from '../../core/feeding/feeding.service';
+import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Baby } from '../../core/baby/baby.models';
 import { Diaper } from '../../core/diaper/diaper.models';
@@ -39,10 +40,15 @@ const MOCK_FEEDING: Feeding = {
   created_at: '',
 };
 
-async function configure(baby: Baby | null, feeding: Feeding | null = null) {
+async function configure(
+  baby: Baby | null,
+  feeding: Feeding | null = null,
+  ongoingFeeding: Feeding | null = null,
+) {
   TestBed.resetTestingModule();
   const babySignal = signal<Baby | null>(baby);
   const feedingSignal = signal<Feeding | null>(feeding);
+  const ongoingSignal = signal<Feeding | null>(ongoingFeeding);
   await TestBed.configureTestingModule({
     imports: [HomeComponent],
     providers: [
@@ -64,11 +70,22 @@ async function configure(baby: Baby | null, feeding: Feeding | null = null) {
       },
       {
         provide: FeedingService,
-        useValue: { lastFeeding: { value: feedingSignal.asReadonly() } },
+        useValue: {
+          lastFeeding: { value: feedingSignal.asReadonly(), reload: vi.fn() },
+          ongoingFeeding: { value: ongoingSignal.asReadonly(), reload: vi.fn() },
+        },
       },
       {
         provide: MatSnackBar,
         useValue: { open: vi.fn().mockReturnValue({ onAction: vi.fn().mockReturnValue({ subscribe: vi.fn() }) }) },
+      },
+      {
+        provide: MatBottomSheet,
+        useValue: {
+          open: vi.fn().mockReturnValue({
+            afterDismissed: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
+          }),
+        },
       },
     ],
   }).compileComponents();
@@ -213,5 +230,52 @@ describe('HomeComponent — recordDiaper', () => {
     expect(subscribeFn).toHaveBeenCalled();
     captured.cb?.();
     expect(deleteDiaperFn).toHaveBeenCalledWith(MOCK_DIAPER.id);
+  });
+});
+
+// ── lastFeedingLabel avec tétée en cours ──────────────────────────────────────
+
+describe('HomeComponent — lastFeedingLabel avec ongoingFeeding', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('affiche "Tétée en cours depuis X" quand ongoingFeeding est non null', async () => {
+    const ongoingFeeding: Feeding = {
+      ...MOCK_FEEDING,
+      started_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+      ended_at: null,
+    };
+    await configure(MOCK_BABY, null, ongoingFeeding);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    expect(comp.lastFeedingLabel()).toContain('Tétée en cours depuis');
+  });
+});
+
+// ── Bouton tétée ──────────────────────────────────────────────────────────────
+
+describe('HomeComponent — bouton tétée', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('appelle openFeedingSheet quand le bouton tétée est cliqué', async () => {
+    await configure(MOCK_BABY);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    const openSheetFn = vi.fn();
+    Object.assign(comp, {
+      bottomSheet: {
+        open: openSheetFn.mockReturnValue({
+          afterDismissed: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
+        }),
+      },
+    });
+
+    const btn = fixture.nativeElement.querySelector('.feeding-btn') as HTMLButtonElement;
+    btn.click();
+
+    expect(openSheetFn).toHaveBeenCalled();
   });
 });
