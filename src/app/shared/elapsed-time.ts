@@ -1,3 +1,5 @@
+import type { FeedingType } from '../core/feeding/feeding.models';
+
 export function formatElapsed(from: Date, now: Date): string {
   const diffMs = now.getTime() - from.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
@@ -10,7 +12,7 @@ export function formatElapsed(from: Date, now: Date): string {
   return `il y a ${h} h ${m} min`;
 }
 
-export function feedingTypeLabel(type: string): string {
+export function feedingTypeLabel(type: FeedingType): string {
   switch (type) {
     case 'breast_left':
       return 'sein gauche';
@@ -18,7 +20,5 @@ export function feedingTypeLabel(type: string): string {
       return 'sein droit';
     case 'bottle':
       return 'biberon';
-    default:
-      return type;
   }
 }

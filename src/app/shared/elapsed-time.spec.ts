@@ -56,7 +56,4 @@ describe('feedingTypeLabel', () => {
     expect(feedingTypeLabel('bottle')).toBe('biberon');
   });
 
-  it('retourne la valeur brute pour un type inconnu', () => {
-    expect(feedingTypeLabel('unknown_type')).toBe('unknown_type');
-  });
 });

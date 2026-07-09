@@ -281,11 +281,12 @@ export class HomeComponent {
 
   // ── Last feeding label ──
   readonly lastFeedingLabel = computed(() => {
+    const now = new Date(this.now()); // lire now() en premier — dépendance inconditionnelle
     const feeding = this.feedingService.lastFeeding.value();
     if (!feeding) return 'Aucune tétée enregistrée';
-    const elapsed = formatElapsed(new Date(feeding.started_at), new Date(this.now()));
     const typeLabel = feedingTypeLabel(feeding.type);
-    return `${elapsed} (${typeLabel})`;
+    const elapsed = formatElapsed(new Date(feeding.started_at), now);
+    return `Dernière tétée ${elapsed} (${typeLabel})`;
   });
 
   // ── Empty state form ──
@@ -315,13 +316,14 @@ export class HomeComponent {
 
   // ── Diaper recording with undo ──
   async recordDiaper(kind: DiaperKind): Promise<void> {
-    const babyId = this.baby.currentBaby()?.id;
-    if (!babyId) return;
+    const babyId = this.baby.currentBaby()!.id; // template garantit currentBaby() !== null dans ce bloc
     try {
       const diaper = await this.diaperService.createDiaper(babyId, kind);
       const ref = this.snackBar.open('Couche enregistrée', 'Annuler', { duration: 5000 });
       ref.onAction().subscribe(() => {
-        this.diaperService.deleteDiaper(diaper.id);
+        this.diaperService.deleteDiaper(diaper.id).catch(() => {
+          this.snackBar.open('Annulation impossible', undefined, { duration: 3000 });
+        });
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement';

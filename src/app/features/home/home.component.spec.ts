@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { vi, describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { HomeComponent } from './home.component';
 import { BabyService } from '../../core/baby/baby.service';
 import { DiaperService } from '../../core/diaper/diaper.service';
@@ -114,6 +114,34 @@ describe('HomeComponent — écran principal', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.banner-value')?.textContent)
       .toContain('sein droit');
+  });
+});
+
+// ── Timer tick — lastFeedingLabel réactif à la minute ────────────────────────
+
+describe('HomeComponent — timer tick', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    TestBed.resetTestingModule();
+  });
+
+  it('met à jour le libellé après 1 minute sans reload', async () => {
+    // Tétée il y a 10 minutes par rapport à maintenant (instant faux)
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+    const feeding: Feeding = { ...MOCK_FEEDING, started_at: tenMinutesAgo };
+
+    await configure(MOCK_BABY, feeding);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    expect(comp.lastFeedingLabel()).toContain('il y a 10 min');
+
+    // Avancer l'horloge de 60 secondes : l'interval du composant se déclenche
+    vi.advanceTimersByTime(60_000);
+
+    expect(comp.lastFeedingLabel()).toContain('il y a 11 min');
   });
 });
 
