@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection, signal, computed, resource } from '@angular/core';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { vi, describe, it, expect, afterEach } from 'vitest';
 import { HomeComponent } from './home.component';
 import { BabyService } from '../../core/baby/baby.service';
 import { DiaperService } from '../../core/diaper/diaper.service';
@@ -9,7 +9,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Baby } from '../../core/baby/baby.models';
 import { Diaper } from '../../core/diaper/diaper.models';
 import { Feeding } from '../../core/feeding/feeding.models';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 const MOCK_BABY: Baby = {
   id: 'b-1',
@@ -39,145 +38,151 @@ const MOCK_FEEDING: Feeding = {
   created_at: '',
 };
 
-function makeBabyMock(baby: Baby | null) {
-  const babySignal = signal(baby);
-  return {
-    currentBaby: babySignal.asReadonly(),
-    babies: { value: () => baby ? [baby] : [], reload: vi.fn() },
-    createBaby: vi.fn().mockResolvedValue(undefined),
-  } as unknown as BabyService;
-}
-
-function makeDiaperMock(diaper: Diaper = MOCK_DIAPER) {
-  return {
-    createDiaper: vi.fn().mockResolvedValue(diaper),
-    deleteDiaper: vi.fn().mockResolvedValue(undefined),
-  } as unknown as DiaperService;
-}
-
-function makeFeedingMock(feeding: Feeding | null = null) {
-  const feedingSignal = signal(feeding);
-  return {
-    lastFeeding: { value: feedingSignal.asReadonly() },
-  } as unknown as FeedingService;
-}
-
-function makeSnackBarMock() {
-  const onActionFn = vi.fn().mockReturnValue({ subscribe: vi.fn() });
-  const openFn = vi.fn().mockReturnValue({ onAction: onActionFn });
-  return { open: openFn, _onAction: onActionFn } as unknown as MatSnackBar & { _onAction: ReturnType<typeof vi.fn> };
-}
-
-async function setup(baby: Baby | null, feeding: Feeding | null = null) {
-  const babyMock = makeBabyMock(baby);
-  const diaperMock = makeDiaperMock();
-  const feedingMock = makeFeedingMock(feeding);
-  const snackBarMock = makeSnackBarMock();
-
+async function configure(baby: Baby | null, feeding: Feeding | null = null) {
+  TestBed.resetTestingModule();
+  const babySignal = signal<Baby | null>(baby);
+  const feedingSignal = signal<Feeding | null>(feeding);
   await TestBed.configureTestingModule({
-    imports: [HomeComponent, NoopAnimationsModule],
+    imports: [HomeComponent],
     providers: [
       provideZonelessChangeDetection(),
-      { provide: BabyService, useValue: babyMock },
-      { provide: DiaperService, useValue: diaperMock },
-      { provide: FeedingService, useValue: feedingMock },
-      { provide: MatSnackBar, useValue: snackBarMock },
+      {
+        provide: BabyService,
+        useValue: {
+          currentBaby: babySignal.asReadonly(),
+          babies: { value: () => (baby ? [baby] : []), reload: vi.fn() },
+          createBaby: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+      {
+        provide: DiaperService,
+        useValue: {
+          createDiaper: vi.fn().mockResolvedValue(MOCK_DIAPER),
+          deleteDiaper: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+      {
+        provide: FeedingService,
+        useValue: { lastFeeding: { value: feedingSignal.asReadonly() } },
+      },
+      {
+        provide: MatSnackBar,
+        useValue: { open: vi.fn().mockReturnValue({ onAction: vi.fn().mockReturnValue({ subscribe: vi.fn() }) }) },
+      },
     ],
   }).compileComponents();
-
-  return { babyMock, diaperMock, feedingMock, snackBarMock };
 }
 
-describe('HomeComponent', () => {
-  describe('état vide — currentBaby === null', () => {
-    it('affiche le formulaire d\'ajout de bébé', async () => {
-      await setup(null);
-      const fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
-      const el: HTMLElement = fixture.nativeElement;
-      expect(el.querySelector('.empty-state')).toBeTruthy();
-      expect(el.querySelector('.home-screen')).toBeNull();
-    });
+// ── Template rendering ────────────────────────────────────────────────────────
 
-    it('cache l\'écran principal', async () => {
-      await setup(null);
-      const fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
-      const el: HTMLElement = fixture.nativeElement;
-      expect(el.querySelector('.home-screen')).toBeNull();
-    });
+describe('HomeComponent — état vide (currentBaby === null)', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('affiche le formulaire et cache l\'écran principal', async () => {
+    await configure(null);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.empty-state')).toBeTruthy();
+    expect(el.querySelector('.home-screen')).toBeNull();
+  });
+});
+
+describe('HomeComponent — écran principal', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('affiche l\'écran principal quand currentBaby est défini', async () => {
+    await configure(MOCK_BABY);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.home-screen')).toBeTruthy();
+    expect(el.querySelector('.empty-state')).toBeNull();
   });
 
-  describe('écran principal — currentBaby présent', () => {
-    it('affiche l\'écran principal et cache le formulaire', async () => {
-      await setup(MOCK_BABY);
-      const fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
-      const el: HTMLElement = fixture.nativeElement;
-      expect(el.querySelector('.home-screen')).toBeTruthy();
-      expect(el.querySelector('.empty-state')).toBeNull();
-    });
-
-    it('affiche "Aucune tétée enregistrée" si lastFeeding est null', async () => {
-      await setup(MOCK_BABY, null);
-      const fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
-      const el: HTMLElement = fixture.nativeElement;
-      expect(el.querySelector('.banner-value')?.textContent).toContain('Aucune tétée enregistrée');
-    });
-
-    it('affiche le libellé de la dernière tétée si présente', async () => {
-      await setup(MOCK_BABY, MOCK_FEEDING);
-      const fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
-      const el: HTMLElement = fixture.nativeElement;
-      const bannerValue = el.querySelector('.banner-value')?.textContent ?? '';
-      expect(bannerValue).toContain('sein droit');
-    });
+  it('banner : affiche "Aucune tétée enregistrée" si lastFeeding est null', async () => {
+    await configure(MOCK_BABY, null);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.banner-value')?.textContent)
+      .toContain('Aucune tétée enregistrée');
   });
 
-  describe('recordDiaper — enregistrement d\'une couche', () => {
-    it('appelle createDiaper avec le bon kind', async () => {
-      const { diaperMock } = await setup(MOCK_BABY);
-      const fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
+  it('banner : affiche le libellé de la dernière tétée', async () => {
+    await configure(MOCK_BABY, MOCK_FEEDING);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.banner-value')?.textContent)
+      .toContain('sein droit');
+  });
+});
 
-      await fixture.componentInstance.recordDiaper('dirty');
+// ── recordDiaper — logic tests via direct method invocation ──────────────────
+// Each test monkey-patches the injected service references on the component
+// instance to avoid TestBed isolation issues across sequential tests.
 
-      expect(diaperMock.createDiaper).toHaveBeenCalledWith('b-1', 'dirty');
+describe('HomeComponent — recordDiaper', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('appelle createDiaper avec le bon babyId et kind', async () => {
+    await configure(MOCK_BABY);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    // Override injected services with fresh mocks directly on the instance
+    const createDiaperFn = vi.fn().mockResolvedValue(MOCK_DIAPER);
+    const openFn = vi.fn().mockReturnValue({ onAction: vi.fn().mockReturnValue({ subscribe: vi.fn() }) });
+    Object.assign(comp, {
+      baby: { currentBaby: () => MOCK_BABY },
+      diaperService: { createDiaper: createDiaperFn, deleteDiaper: vi.fn() },
+      snackBar: { open: openFn },
     });
 
-    it('affiche un snackbar après l\'enregistrement', async () => {
-      const { snackBarMock } = await setup(MOCK_BABY);
-      const fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
+    await comp.recordDiaper('dirty');
 
-      await fixture.componentInstance.recordDiaper('wet');
+    expect(createDiaperFn).toHaveBeenCalledWith('b-1', 'dirty');
+  });
 
-      expect(snackBarMock.open).toHaveBeenCalledWith(
-        'Couche enregistrée',
-        'Annuler',
-        { duration: 5000 },
-      );
+  it('affiche un snackbar "Couche enregistrée" avec bouton Annuler', async () => {
+    await configure(MOCK_BABY);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    const createDiaperFn = vi.fn().mockResolvedValue(MOCK_DIAPER);
+    const openFn = vi.fn().mockReturnValue({ onAction: vi.fn().mockReturnValue({ subscribe: vi.fn() }) });
+    Object.assign(comp, {
+      baby: { currentBaby: () => MOCK_BABY },
+      diaperService: { createDiaper: createDiaperFn, deleteDiaper: vi.fn() },
+      snackBar: { open: openFn },
     });
 
-    it('appelle deleteDiaper si l\'utilisateur clique sur "Annuler"', async () => {
-      const { diaperMock, snackBarMock } = await setup(MOCK_BABY);
+    await comp.recordDiaper('wet');
 
-      let actionCallback: (() => void) | null = null;
-      const subscribeFn = vi.fn((cb: () => void) => { actionCallback = cb; });
-      (snackBarMock as unknown as { open: ReturnType<typeof vi.fn> }).open.mockReturnValue({
-        onAction: () => ({ subscribe: subscribeFn }),
-      });
+    expect(openFn).toHaveBeenCalledWith('Couche enregistrée', 'Annuler', { duration: 5000 });
+  });
 
-      const fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
+  it('appelle deleteDiaper quand l\'utilisateur clique sur "Annuler"', async () => {
+    await configure(MOCK_BABY);
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
 
-      await fixture.componentInstance.recordDiaper('mixed');
-
-      expect(subscribeFn).toHaveBeenCalled();
-      actionCallback?.();
-      expect(diaperMock.deleteDiaper).toHaveBeenCalledWith(MOCK_DIAPER.id);
+    const deleteDiaperFn = vi.fn().mockResolvedValue(undefined);
+    const captured: { cb: (() => void) | null } = { cb: null };
+    const subscribeFn = vi.fn((cb: () => void) => { captured.cb = cb; });
+    const openFn = vi.fn().mockReturnValue({ onAction: () => ({ subscribe: subscribeFn }) });
+    Object.assign(comp, {
+      baby: { currentBaby: () => MOCK_BABY },
+      diaperService: { createDiaper: vi.fn().mockResolvedValue(MOCK_DIAPER), deleteDiaper: deleteDiaperFn },
+      snackBar: { open: openFn },
     });
+
+    await comp.recordDiaper('mixed');
+
+    expect(subscribeFn).toHaveBeenCalled();
+    captured.cb?.();
+    expect(deleteDiaperFn).toHaveBeenCalledWith(MOCK_DIAPER.id);
   });
 });

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection, signal, computed } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { vi, describe, it, expect } from 'vitest';
 import { FeedingService } from './feeding.service';
 import { SupabaseService } from '../supabase.service';
@@ -52,7 +52,7 @@ describe('FeedingService', () => {
         ],
       }).compileComponents();
 
-      const svc = TestBed.inject(FeedingService);
+      TestBed.inject(FeedingService);
       await new Promise(resolve => setTimeout(resolve, 0));
       // When babyId is null the loader returns null immediately
       expect(supabaseMock.client.from).not.toHaveBeenCalled();
