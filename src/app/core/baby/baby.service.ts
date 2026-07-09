@@ -1,0 +1,35 @@
+import { Injectable, inject, computed, resource } from '@angular/core';
+import { HouseholdService } from '../household/household.service';
+import { SupabaseService } from '../supabase.service';
+import { Baby } from './baby.models';
+
+@Injectable({ providedIn: 'root' })
+export class BabyService {
+  private readonly supabase = inject(SupabaseService);
+  private readonly household = inject(HouseholdService);
+
+  readonly babies = resource({
+    params: () => ({ householdId: this.household.household()?.id ?? null }),
+    loader: async ({ params }) => {
+      if (!params.householdId) return [] as Baby[];
+      const { data } = await this.supabase.client
+        .from('babies')
+        .select('*')
+        .eq('household_id', params.householdId)
+        .order('created_at', { ascending: true });
+      return (data ?? []) as Baby[];
+    },
+  });
+
+  readonly currentBaby = computed(() => this.babies.value()?.[0] ?? null);
+
+  async createBaby(name: string, birthDate: string): Promise<void> {
+    const householdId = this.household.household()?.id;
+    if (!householdId) throw new Error('No household');
+    const { error } = await this.supabase.client
+      .from('babies')
+      .insert({ household_id: householdId, name, birth_date: birthDate });
+    if (error) throw error;
+    this.babies.reload();
+  }
+}
