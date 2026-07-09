@@ -4,7 +4,7 @@ import { vi, describe, it, expect } from 'vitest';
 import { BabyService } from './baby.service';
 import { SupabaseService } from '../supabase.service';
 import { HouseholdService } from '../household/household.service';
-import { Baby } from './baby.models';
+import { Baby, FeedingPreference } from './baby.models';
 
 function makeSupabaseMock(babies: Baby[] = []) {
   const selectChain = {
@@ -79,6 +79,7 @@ describe('BabyService', () => {
         household_id: 'hh-1',
         name: 'Léa',
         birth_date: '2026-01-01',
+        feeding_preference: 'mixed',
         created_at: '',
       };
       const supabaseMock = makeSupabaseMock([baby]);
@@ -100,8 +101,17 @@ describe('BabyService', () => {
 
   describe('createBaby — insère dans Supabase et recharge', () => {
     it('appelle insert avec les bons champs et appelle reload', async () => {
-      const insertResolvedValue = { data: null, error: null };
-      const insertFn = vi.fn().mockResolvedValue(insertResolvedValue);
+      const MOCK_BABY_CREATED: Baby = {
+        id: 'b-new',
+        household_id: 'hh-42',
+        name: 'Léa',
+        birth_date: '2026-01-01',
+        feeding_preference: 'mixed',
+        created_at: '',
+      };
+      const singleFn = vi.fn().mockResolvedValue({ data: MOCK_BABY_CREATED, error: null });
+      const insertSelectFn = vi.fn().mockReturnValue({ single: singleFn });
+      const insertFn = vi.fn().mockReturnValue({ select: insertSelectFn });
       const fromFn = vi.fn().mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -122,14 +132,16 @@ describe('BabyService', () => {
       const svc = TestBed.inject(BabyService);
       const reloadSpy = vi.spyOn(svc.babies, 'reload');
 
-      await svc.createBaby('Léa', '2026-01-01');
+      const result = await svc.createBaby('Léa', '2026-01-01', 'mixed');
 
       expect(insertFn).toHaveBeenCalledWith({
         household_id: 'hh-42',
         name: 'Léa',
         birth_date: '2026-01-01',
+        feeding_preference: 'mixed',
       });
       expect(reloadSpy).toHaveBeenCalled();
+      expect(result).toEqual(MOCK_BABY_CREATED);
     });
 
     it('lève une erreur si pas de foyer', async () => {
@@ -145,7 +157,7 @@ describe('BabyService', () => {
       }).compileComponents();
 
       const svc = TestBed.inject(BabyService);
-      await expect(svc.createBaby('Léa', '2026-01-01')).rejects.toThrow('No household');
+      await expect(svc.createBaby('Léa', '2026-01-01', 'mixed')).rejects.toThrow('No household');
     });
   });
 });

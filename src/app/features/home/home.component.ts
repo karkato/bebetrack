@@ -12,6 +12,7 @@ import { BabyService } from '../../core/baby/baby.service';
 import { DiaperService } from '../../core/diaper/diaper.service';
 import { DiaperKind } from '../../core/diaper/diaper.models';
 import { FeedingService } from '../../core/feeding/feeding.service';
+import { FeedingPreference } from '../../core/baby/baby.models';
 import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
 
 @Component({
@@ -47,6 +48,19 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
               (input)="babyBirthDate.set($any($event.target).value)"
               required
             />
+          </div>
+
+          <div class="field">
+            <label for="baby-preference">Alimentation</label>
+            <select
+              id="baby-preference"
+              [value]="babyPreference()"
+              (change)="babyPreference.set($any($event.target).value)"
+            >
+              <option value="breast">Allaitement</option>
+              <option value="bottle">Biberon</option>
+              <option value="mixed">Mixte</option>
+            </select>
           </div>
 
           @if (babyFormError()) {
@@ -149,6 +163,20 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
     }
 
     .field input:focus {
+      border-color: var(--mat-sys-primary);
+    }
+
+    .field select {
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--mat-sys-outline);
+      background: var(--mat-sys-surface-variant);
+      color: var(--mat-sys-on-surface);
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .field select:focus {
       border-color: var(--mat-sys-primary);
     }
 
@@ -292,6 +320,7 @@ export class HomeComponent {
   // ── Empty state form ──
   readonly babyName = signal('');
   readonly babyBirthDate = signal('');
+  readonly babyPreference = signal<FeedingPreference>('mixed');
   readonly babyFormLoading = signal(false);
   readonly babyFormError = signal<string | null>(null);
 
@@ -305,7 +334,7 @@ export class HomeComponent {
     this.babyFormLoading.set(true);
     this.babyFormError.set(null);
     try {
-      await this.baby.createBaby(name, birthDate);
+      await this.baby.createBaby(name, birthDate, this.babyPreference());
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Impossible d'ajouter le bébé";
       this.babyFormError.set(message);

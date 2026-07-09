@@ -6,6 +6,7 @@ import { SupabaseService } from '../supabase.service';
 import { BabyService } from '../baby/baby.service';
 import { Feeding } from './feeding.models';
 import { Baby } from '../baby/baby.models';
+import { SessionService } from '../auth/session.service';
 
 const MOCK_FEEDING: Feeding = {
   id: 'f-1',
@@ -66,6 +67,7 @@ describe('FeedingService', () => {
         household_id: 'hh-1',
         name: 'Léa',
         birth_date: '2026-01-01',
+        feeding_preference: 'mixed',
         created_at: '',
       };
       const supabaseMock = makeSupabaseMock(MOCK_FEEDING);

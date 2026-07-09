@@ -15,6 +15,7 @@ const MOCK_BABY: Baby = {
   household_id: 'hh-1',
   name: 'Léa',
   birth_date: '2026-01-01',
+  feeding_preference: 'mixed',
   created_at: '',
 };
 
