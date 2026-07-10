@@ -71,12 +71,14 @@ describe('DiaperService', () => {
       const svc = TestBed.inject(DiaperService);
       const result = await svc.createDiaper('b-1', 'dirty');
 
+      // RPC not mocked → fallback to direct insert
       expect(mock.client.from).toHaveBeenCalledWith('diapers');
       const insertArg = (mock as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks['insertFn'].mock.calls[0][0];
       expect(insertArg.baby_id).toBe('b-1');
       expect(insertArg.kind).toBe('dirty');
       expect(insertArg.created_by).toBe('user-42');
-      expect(typeof insertArg.at).toBe('string');
+      // 'at' is now managed by DB default — not sent in fallback insert
+      expect(insertArg.at).toBeUndefined();
       expect(result).toEqual(MOCK_DIAPER);
     });
 

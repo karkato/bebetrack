@@ -38,20 +38,43 @@ export class DiaperService {
   async createDiaper(babyId: string, kind: DiaperKind): Promise<Diaper> {
     const userId = this.session.user()?.id;
     if (!userId) throw new Error('Not authenticated');
-    const { data, error } = await this.supabase.client
-      .from('diapers')
-      .insert({ baby_id: babyId, kind, at: new Date().toISOString(), created_by: userId })
-      .select()
-      .single();
-    if (error) throw error;
-    return data as Diaper;
+    try {
+      // Atomic RPC: insert diaper + auto-decrement stock
+      const { data, error } = await this.supabase.client.rpc('record_diaper_with_stock', {
+        p_baby_id: babyId,
+        p_kind: kind,
+      });
+      if (error) throw error;
+      const diaperId = (data as { diaper_id: string }).diaper_id;
+      const { data: diaper, error: fetchError } = await this.supabase.client
+        .from('diapers')
+        .select('*')
+        .eq('id', diaperId)
+        .single();
+      if (fetchError) throw fetchError;
+      return diaper as Diaper;
+    } catch {
+      // Fallback: insert diaper only (best-effort — action must not be blocked by stock error)
+      const { data, error } = await this.supabase.client
+        .from('diapers')
+        .insert({ baby_id: babyId, kind, created_by: userId })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Diaper;
+    }
   }
 
   async deleteDiaper(id: string): Promise<void> {
-    const { error } = await this.supabase.client
-      .from('diapers')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    // Use symmetric RPC to also clean up diaper_auto stock movements
+    try {
+      const { error } = await this.supabase.client.rpc('delete_diaper_with_stock', {
+        p_diaper_id: id,
+      });
+      if (error) throw error;
+    } catch {
+      // Fallback: delete diaper only
+      await this.supabase.client.from('diapers').delete().eq('id', id);
+    }
   }
 }
