@@ -1,10 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
-import { vi, describe, it, expect } from 'vitest';
+import { vi, describe, it, expect, afterEach } from 'vitest';
 import { DiaperService } from './diaper.service';
 import { SupabaseService } from '../supabase.service';
 import { SessionService } from '../auth/session.service';
+import { BabyService } from '../baby/baby.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { Diaper } from './diaper.models';
+import { Baby } from '../baby/baby.models';
 
 const MOCK_DIAPER: Diaper = {
   id: 'd-1',
@@ -13,6 +16,15 @@ const MOCK_DIAPER: Diaper = {
   kind: 'wet',
   created_by: 'user-1',
   created_at: '2026-01-01T10:00:00Z',
+};
+
+const MOCK_BABY: Baby = {
+  id: 'b-1',
+  household_id: 'hh-1',
+  name: 'Léa',
+  birth_date: '2026-01-01',
+  feeding_preference: 'mixed',
+  created_at: '',
 };
 
 function makeSupabaseMock(returnedDiaper: Diaper | null = MOCK_DIAPER) {
@@ -39,17 +51,46 @@ function makeSessionMock(userId: string | null) {
   } as unknown as SessionService;
 }
 
+function makeBabyMock(baby: Baby | null) {
+  const babySignal = signal(baby);
+  return {
+    _signal: babySignal,
+    currentBaby: babySignal.asReadonly(),
+  } as unknown as BabyService & { _signal: ReturnType<typeof signal<Baby | null>> };
+}
+
+function makeRealtimeMock() {
+  const unsubscribeFn = vi.fn();
+  const subscribeFn = vi.fn().mockReturnValue({ unsubscribe: unsubscribeFn });
+  return {
+    mock: {
+      subscribe: subscribeFn,
+      status: signal('SUBSCRIBED').asReadonly(),
+    } as unknown as RealtimeService,
+    subscribeFn,
+    unsubscribeFn,
+  };
+}
+
+// ── existing mutation tests ────────────────────────────────────────────────────
+
 describe('DiaperService', () => {
   describe('createDiaper — passe created_by depuis la session', () => {
+    afterEach(() => TestBed.resetTestingModule());
+
     it('insère avec le bon userId et le bon kind', async () => {
       const mock = makeSupabaseMock();
       const sessionMock = makeSessionMock('user-42');
+      const babyMock = makeBabyMock(null);
+      const { mock: realtimeMock } = makeRealtimeMock();
 
       await TestBed.configureTestingModule({
         providers: [
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: mock },
           { provide: SessionService, useValue: sessionMock },
+          { provide: BabyService, useValue: babyMock },
+          { provide: RealtimeService, useValue: realtimeMock },
         ],
       }).compileComponents();
 
@@ -68,12 +109,16 @@ describe('DiaperService', () => {
     it('lève une erreur si non authentifié', async () => {
       const mock = makeSupabaseMock();
       const sessionMock = makeSessionMock(null);
+      const babyMock = makeBabyMock(null);
+      const { mock: realtimeMock } = makeRealtimeMock();
 
       await TestBed.configureTestingModule({
         providers: [
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: mock },
           { provide: SessionService, useValue: sessionMock },
+          { provide: BabyService, useValue: babyMock },
+          { provide: RealtimeService, useValue: realtimeMock },
         ],
       }).compileComponents();
 
@@ -83,15 +128,21 @@ describe('DiaperService', () => {
   });
 
   describe('deleteDiaper — appelle delete avec le bon id', () => {
+    afterEach(() => TestBed.resetTestingModule());
+
     it('supprime la couche par id', async () => {
       const mock = makeSupabaseMock();
       const sessionMock = makeSessionMock('user-42');
+      const babyMock = makeBabyMock(null);
+      const { mock: realtimeMock } = makeRealtimeMock();
 
       await TestBed.configureTestingModule({
         providers: [
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: mock },
           { provide: SessionService, useValue: sessionMock },
+          { provide: BabyService, useValue: babyMock },
+          { provide: RealtimeService, useValue: realtimeMock },
         ],
       }).compileComponents();
 
@@ -102,5 +153,122 @@ describe('DiaperService', () => {
       const eqFn = (mock as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks['eqFn'];
       expect(eqFn).toHaveBeenCalledWith('id', 'd-99');
     });
+  });
+});
+
+// ── Realtime tests ────────────────────────────────────────────────────────────
+
+describe('DiaperService — Realtime subscription', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('diaperInvalidated commence à 0', async () => {
+    const mock = makeSupabaseMock();
+    const sessionMock = makeSessionMock('user-1');
+    const babyMock = makeBabyMock(null);
+    const { mock: realtimeMock } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: mock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    const svc = TestBed.inject(DiaperService);
+    expect(svc.diaperInvalidated()).toBe(0);
+  });
+
+  it('un event Realtime incrémente diaperInvalidated', async () => {
+    const mock = makeSupabaseMock();
+    const sessionMock = makeSessionMock('user-1');
+    const babyMock = makeBabyMock(MOCK_BABY);
+
+    let capturedCallback: (() => void) | null = null;
+    const unsubscribeFn = vi.fn();
+    const subscribeFn = vi.fn().mockImplementation(
+      (_name: string, _table: string, _filter: string, cb: () => void) => {
+        capturedCallback = cb;
+        return { unsubscribe: unsubscribeFn };
+      }
+    );
+    const realtimeMock = {
+      subscribe: subscribeFn,
+      status: signal('SUBSCRIBED').asReadonly(),
+    } as unknown as RealtimeService;
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: mock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    const svc = TestBed.inject(DiaperService);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(svc.diaperInvalidated()).toBe(0);
+    capturedCallback?.();
+    expect(svc.diaperInvalidated()).toBe(1);
+    capturedCallback?.();
+    expect(svc.diaperInvalidated()).toBe(2);
+  });
+
+  it('appelle subscribe() avec table diapers et le bon filtre', async () => {
+    const mock = makeSupabaseMock();
+    const sessionMock = makeSessionMock('user-1');
+    const babyMock = makeBabyMock(MOCK_BABY);
+    const { mock: realtimeMock, subscribeFn } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: mock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    TestBed.inject(DiaperService);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(subscribeFn).toHaveBeenCalledWith(
+      'diapers-baby-b-1',
+      'diapers',
+      'baby_id=eq.b-1',
+      expect.any(Function),
+    );
+  });
+
+  it('appelle unsubscribe() quand currentBaby passe à null', async () => {
+    const mock = makeSupabaseMock();
+    const sessionMock = makeSessionMock('user-1');
+    const babyMock = makeBabyMock(MOCK_BABY);
+    const { mock: realtimeMock, unsubscribeFn } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: mock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    TestBed.inject(DiaperService);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Change baby to null — triggers effect cleanup
+    (babyMock as unknown as { _signal: ReturnType<typeof signal<Baby | null>> })._signal.set(null);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(unsubscribeFn).toHaveBeenCalled();
   });
 });
