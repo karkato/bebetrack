@@ -4,7 +4,7 @@ import { vi, describe, it, expect } from 'vitest';
 import { BabyService } from './baby.service';
 import { SupabaseService } from '../supabase.service';
 import { HouseholdService } from '../household/household.service';
-import { Baby, FeedingPreference } from './baby.models';
+import { Baby } from './baby.models';
 
 function makeSupabaseMock(babies: Baby[] = []) {
   const selectChain = {

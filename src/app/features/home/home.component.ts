@@ -21,7 +21,7 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatSnackBarModule, MatBottomSheetModule, FeedingSheetComponent],
+  imports: [MatButtonModule, MatSnackBarModule, MatBottomSheetModule],
   template: `
     @if (baby.currentBaby() === null) {
       <div class="empty-state">
