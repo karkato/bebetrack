@@ -1,6 +1,11 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import {
+  type RealtimeChannel,
+  type RealtimePostgresChangesPayload,
+  REALTIME_LISTEN_TYPES,
+  REALTIME_POSTGRES_CHANGES_LISTEN_EVENT,
+} from '@supabase/supabase-js';
 import { SupabaseService } from '../supabase.service';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { RealtimeStatus, RealtimeSubscription } from './realtime.models';
 
 @Injectable({ providedIn: 'root' })
@@ -33,24 +38,23 @@ export class RealtimeService {
     channelName: string,
     table: string,
     filter: string | undefined,
-    callback: (payload: unknown) => void,
+    callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void,
   ): RealtimeSubscription {
     // Remove existing channel with same name if any
     this.unsubscribeChannel(channelName);
 
-    const channelOptions: Record<string, unknown> = {
-      event: '*',
-      schema: 'public',
-      table,
-    };
-    if (filter) {
-      channelOptions['filter'] = filter;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const channel = this.supabase.client
       .channel(channelName)
-      .on('postgres_changes' as any, channelOptions, callback)
+      .on(
+        REALTIME_LISTEN_TYPES.POSTGRES_CHANGES,
+        {
+          event: REALTIME_POSTGRES_CHANGES_LISTEN_EVENT.ALL,
+          schema: 'public',
+          table,
+          ...(filter ? { filter } : {}),
+        },
+        callback,
+      )
       .subscribe((status: string) => {
         this._status.set(status as RealtimeStatus);
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -87,7 +91,7 @@ export class RealtimeService {
     channelName: string,
     table: string,
     filter: string | undefined,
-    callback: (payload: unknown) => void,
+    callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void,
   ): void {
     console.info(`[Realtime] Re-subscribing channel ${channelName}`);
     this.subscribe(channelName, table, filter, callback);

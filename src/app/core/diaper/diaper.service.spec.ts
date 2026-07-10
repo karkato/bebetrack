@@ -186,11 +186,12 @@ describe('DiaperService — Realtime subscription', () => {
     const sessionMock = makeSessionMock('user-1');
     const babyMock = makeBabyMock(MOCK_BABY);
 
-    let capturedCallback: (() => void) | null = null;
+    // Use a holder object to capture the callback — avoids TypeScript CFA "never" narrowing
+    const holder: { cb: (() => void) | null } = { cb: null };
     const unsubscribeFn = vi.fn();
     const subscribeFn = vi.fn().mockImplementation(
-      (_name: string, _table: string, _filter: string, cb: () => void) => {
-        capturedCallback = cb;
+      (...args: unknown[]) => {
+        holder.cb = args[3] as () => void;
         return { unsubscribe: unsubscribeFn };
       }
     );
@@ -213,9 +214,9 @@ describe('DiaperService — Realtime subscription', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(svc.diaperInvalidated()).toBe(0);
-    capturedCallback?.();
+    holder.cb?.();
     expect(svc.diaperInvalidated()).toBe(1);
-    capturedCallback?.();
+    holder.cb?.();
     expect(svc.diaperInvalidated()).toBe(2);
   });
 

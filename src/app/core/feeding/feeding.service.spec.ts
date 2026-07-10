@@ -456,11 +456,12 @@ describe('FeedingService — Realtime subscription', () => {
     const babyMock = makeBabyMock(MOCK_BABY);
     const sessionMock = makeSessionMock('user-1');
 
-    let capturedCallback: (() => void) | null = null;
+    // Use a holder object to capture the callback — avoids TypeScript CFA "never" narrowing
+    const holder: { cb: (() => void) | null } = { cb: null };
     const unsubscribeFn = vi.fn();
     const subscribeFn = vi.fn().mockImplementation(
-      (_name: string, _table: string, _filter: string, cb: () => void) => {
-        capturedCallback = cb;
+      (...args: unknown[]) => {
+        holder.cb = args[3] as () => void;
         return { unsubscribe: unsubscribeFn };
       }
     );
@@ -487,7 +488,7 @@ describe('FeedingService — Realtime subscription', () => {
     const reloadOngoing = vi.spyOn(svc.ongoingFeeding, 'reload');
 
     // Simulate a Realtime event
-    capturedCallback?.();
+    holder.cb?.();
 
     expect(reloadLast).toHaveBeenCalled();
     expect(reloadOngoing).toHaveBeenCalled();
