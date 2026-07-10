@@ -1,10 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { vi, describe, it, expect } from 'vitest';
 import { BabyService } from './baby.service';
 import { SupabaseService } from '../supabase.service';
 import { HouseholdService } from '../household/household.service';
 import { Baby } from './baby.models';
+import { makeHouseholdMock } from '../household/testing/household-mock';
 
 function makeSupabaseMock(babies: Baby[] = []) {
   const selectChain = {
@@ -23,13 +24,6 @@ function makeSupabaseMock(babies: Baby[] = []) {
       }),
     },
   } as unknown as SupabaseService;
-}
-
-function makeHouseholdMock(id: string | null) {
-  const householdSignal = signal(id ? { id, name: 'Test', created_at: '' } : null);
-  return {
-    household: householdSignal.asReadonly(),
-  } as unknown as HouseholdService;
 }
 
 describe('BabyService', () => {
@@ -58,7 +52,7 @@ describe('BabyService', () => {
   describe('currentBaby() est le premier bébé', () => {
     it('retourne null si la liste est vide', async () => {
       const supabaseMock = makeSupabaseMock([]);
-      const householdMock = makeHouseholdMock('hh-1');
+      const householdMock = makeHouseholdMock({ id: 'hh-1', name: 'Test', created_at: '' });
 
       await TestBed.configureTestingModule({
         providers: [
@@ -83,7 +77,7 @@ describe('BabyService', () => {
         created_at: '',
       };
       const supabaseMock = makeSupabaseMock([baby]);
-      const householdMock = makeHouseholdMock('hh-1');
+      const householdMock = makeHouseholdMock({ id: 'hh-1', name: 'Test', created_at: '' });
 
       await TestBed.configureTestingModule({
         providers: [
@@ -119,7 +113,7 @@ describe('BabyService', () => {
         insert: insertFn,
       });
       const supabaseMock = { client: { from: fromFn } } as unknown as SupabaseService;
-      const householdMock = makeHouseholdMock('hh-42');
+      const householdMock = makeHouseholdMock({ id: 'hh-42', name: 'Test', created_at: '' });
 
       await TestBed.configureTestingModule({
         providers: [
