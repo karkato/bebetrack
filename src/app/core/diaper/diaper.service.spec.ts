@@ -8,6 +8,9 @@ import { BabyService } from '../baby/baby.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { Diaper } from './diaper.models';
 import { Baby } from '../baby/baby.models';
+import { MOCK_BABY } from '../baby/testing/baby-fixtures';
+import { makeSessionMock } from '../auth/testing/session-mock';
+import { makeRealtimeMock, makeCapturingRealtimeMock } from '../realtime/testing/realtime-mock';
 
 const MOCK_DIAPER: Diaper = {
   id: 'd-1',
@@ -16,15 +19,6 @@ const MOCK_DIAPER: Diaper = {
   kind: 'wet',
   created_by: 'user-1',
   created_at: '2026-01-01T10:00:00Z',
-};
-
-const MOCK_BABY: Baby = {
-  id: 'b-1',
-  household_id: 'hh-1',
-  name: 'Léa',
-  birth_date: '2026-01-01',
-  feeding_preference: 'mixed',
-  created_at: '',
 };
 
 function makeSupabaseMock(returnedDiaper: Diaper | null = MOCK_DIAPER) {
@@ -44,32 +38,12 @@ function makeSupabaseMock(returnedDiaper: Diaper | null = MOCK_DIAPER) {
   } as unknown as SupabaseService & { _mocks: Record<string, ReturnType<typeof vi.fn>> };
 }
 
-function makeSessionMock(userId: string | null) {
-  const userSignal = signal(userId ? { id: userId } : null);
-  return {
-    user: userSignal.asReadonly(),
-  } as unknown as SessionService;
-}
-
 function makeBabyMock(baby: Baby | null) {
   const babySignal = signal(baby);
   return {
     _signal: babySignal,
     currentBaby: babySignal.asReadonly(),
   } as unknown as BabyService & { _signal: ReturnType<typeof signal<Baby | null>> };
-}
-
-function makeRealtimeMock() {
-  const unsubscribeFn = vi.fn();
-  const subscribeFn = vi.fn().mockReturnValue({ unsubscribe: unsubscribeFn });
-  return {
-    mock: {
-      subscribe: subscribeFn,
-      status: signal('SUBSCRIBED').asReadonly(),
-    } as unknown as RealtimeService,
-    subscribeFn,
-    unsubscribeFn,
-  };
 }
 
 // ── existing mutation tests ────────────────────────────────────────────────────
@@ -185,20 +159,7 @@ describe('DiaperService — Realtime subscription', () => {
     const mock = makeSupabaseMock();
     const sessionMock = makeSessionMock('user-1');
     const babyMock = makeBabyMock(MOCK_BABY);
-
-    // Use a holder object to capture the callback — avoids TypeScript CFA "never" narrowing
-    const holder: { cb: (() => void) | null } = { cb: null };
-    const unsubscribeFn = vi.fn();
-    const subscribeFn = vi.fn().mockImplementation(
-      (...args: unknown[]) => {
-        holder.cb = args[3] as () => void;
-        return { unsubscribe: unsubscribeFn };
-      }
-    );
-    const realtimeMock = {
-      subscribe: subscribeFn,
-      status: signal('SUBSCRIBED').asReadonly(),
-    } as unknown as RealtimeService;
+    const { mock: realtimeMock, holder } = makeCapturingRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [

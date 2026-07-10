@@ -8,6 +8,9 @@ import { SessionService } from '../auth/session.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { Feeding } from './feeding.models';
 import { Baby } from '../baby/baby.models';
+import { MOCK_BABY } from '../baby/testing/baby-fixtures';
+import { makeSessionMock } from '../auth/testing/session-mock';
+import { makeRealtimeMock, makeCapturingRealtimeMock } from '../realtime/testing/realtime-mock';
 
 const MOCK_FEEDING: Feeding = {
   id: 'f-1',
@@ -18,15 +21,6 @@ const MOCK_FEEDING: Feeding = {
   amount_ml: null,
   created_by: 'user-1',
   created_at: '2026-01-01T08:00:00Z',
-};
-
-const MOCK_BABY: Baby = {
-  id: 'b-1',
-  household_id: 'hh-1',
-  name: 'Léa',
-  birth_date: '2026-01-01',
-  feeding_preference: 'mixed',
-  created_at: '',
 };
 
 /** Builds a Supabase mock for the lastFeeding/ongoingFeeding read path */
@@ -51,26 +45,6 @@ function makeBabyMock(baby: Baby | null) {
     _signal: babySignal,
     currentBaby: babySignal.asReadonly(),
   } as unknown as BabyService & { _signal: ReturnType<typeof signal<Baby | null>> };
-}
-
-function makeSessionMock(userId: string | null) {
-  const userSignal = signal(userId ? { id: userId } : null);
-  return {
-    user: userSignal.asReadonly(),
-  } as unknown as SessionService;
-}
-
-function makeRealtimeMock() {
-  const unsubscribeFn = vi.fn();
-  const subscribeFn = vi.fn().mockReturnValue({ unsubscribe: unsubscribeFn });
-  return {
-    mock: {
-      subscribe: subscribeFn,
-      status: signal('SUBSCRIBED').asReadonly(),
-    } as unknown as RealtimeService,
-    subscribeFn,
-    unsubscribeFn,
-  };
 }
 
 // ── resource tests ────────────────────────────────────────────────────────────
@@ -455,20 +429,7 @@ describe('FeedingService — Realtime subscription', () => {
     const supabaseMock = makeReadSupabaseMock(MOCK_FEEDING);
     const babyMock = makeBabyMock(MOCK_BABY);
     const sessionMock = makeSessionMock('user-1');
-
-    // Use a holder object to capture the callback — avoids TypeScript CFA "never" narrowing
-    const holder: { cb: (() => void) | null } = { cb: null };
-    const unsubscribeFn = vi.fn();
-    const subscribeFn = vi.fn().mockImplementation(
-      (...args: unknown[]) => {
-        holder.cb = args[3] as () => void;
-        return { unsubscribe: unsubscribeFn };
-      }
-    );
-    const realtimeMock = {
-      subscribe: subscribeFn,
-      status: signal('SUBSCRIBED').asReadonly(),
-    } as unknown as RealtimeService;
+    const { mock: realtimeMock, holder } = makeCapturingRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
