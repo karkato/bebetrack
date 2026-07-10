@@ -14,8 +14,11 @@ begin
   end loop;
 end $$;
 
--- Ensure authenticated role has SELECT on Realtime tables
--- (required for Supabase Realtime postgres_changes to apply RLS)
+-- Ensure authenticated role has SELECT on Realtime tables.
+-- Supabase JS v2 propagates the user JWT to Realtime channels automatically
+-- (same client instance used for auth via onAuthStateChange).
+-- Combined with the existing RLS SELECT policies (is_baby_household_member),
+-- this ensures users only receive events for their own household.
 grant select on public.feedings to authenticated;
 grant select on public.diapers to authenticated;
 grant select on public.stock_movements to authenticated;

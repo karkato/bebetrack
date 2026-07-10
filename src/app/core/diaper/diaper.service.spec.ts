@@ -8,7 +8,7 @@ import { BabyService } from '../baby/baby.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { Diaper } from './diaper.models';
 import { Baby } from '../baby/baby.models';
-import { MOCK_BABY } from '../baby/testing/baby-fixtures';
+import { MOCK_BABY, MOCK_BABY_B } from '../baby/testing/baby-fixtures';
 import { makeSessionMock } from '../auth/testing/session-mock';
 import { makeRealtimeMock, makeCapturingRealtimeMock } from '../realtime/testing/realtime-mock';
 
@@ -204,6 +204,50 @@ describe('DiaperService — Realtime subscription', () => {
       'diapers-baby-b-1',
       'diapers',
       'baby_id=eq.b-1',
+      expect.any(Function),
+    );
+  });
+
+  // S3: re-subscribe when currentBaby changes from A to B
+  it('re-souscrit quand currentBaby change de A vers B', async () => {
+    const mock = makeSupabaseMock();
+    const sessionMock = makeSessionMock('user-1');
+    const babyMock = makeBabyMock(MOCK_BABY);
+    const { mock: realtimeMock, subscribeFn, unsubscribeFn } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: mock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    TestBed.inject(DiaperService);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(subscribeFn).toHaveBeenCalledTimes(1);
+    expect(subscribeFn).toHaveBeenCalledWith(
+      `diapers-baby-${MOCK_BABY.id}`,
+      'diapers',
+      `baby_id=eq.${MOCK_BABY.id}`,
+      expect.any(Function),
+    );
+
+    // Switch to baby B
+    (babyMock as unknown as { _signal: ReturnType<typeof signal<Baby | null>> })._signal.set(MOCK_BABY_B);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Previous subscription must have been cleaned up
+    expect(unsubscribeFn).toHaveBeenCalledTimes(1);
+    // New subscription for baby B must have been created
+    expect(subscribeFn).toHaveBeenCalledTimes(2);
+    expect(subscribeFn).toHaveBeenLastCalledWith(
+      `diapers-baby-${MOCK_BABY_B.id}`,
+      'diapers',
+      `baby_id=eq.${MOCK_BABY_B.id}`,
       expect.any(Function),
     );
   });

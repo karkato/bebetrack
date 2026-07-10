@@ -88,7 +88,8 @@ describe('RealtimeService', () => {
     expect(callback).toHaveBeenCalledWith(payload);
   });
 
-  it('status signal updates when triggerStatus fires', () => {
+  // M2: status is now a computed() derived from per-channel statuses
+  it('status computed updates when triggerStatus fires (single channel)', () => {
     const { mock, channelMockFactory } = makeSupabaseMock();
     const { channel, triggerStatus } = makeChannelMock();
     channelMockFactory.mockReturnValue(channel);
@@ -103,6 +104,7 @@ describe('RealtimeService', () => {
     const svc = TestBed.inject(RealtimeService);
     svc.subscribe('feedings-baby-b1', 'feedings', 'baby_id=eq.b1', vi.fn());
 
+    // No channels have reported status yet — computed returns 'CONNECTING'
     expect(svc.status()).toBe('CONNECTING');
 
     triggerStatus('SUBSCRIBED');
@@ -110,6 +112,41 @@ describe('RealtimeService', () => {
 
     triggerStatus('CHANNEL_ERROR');
     expect(svc.status()).toBe('CHANNEL_ERROR');
+  });
+
+  // M2: global status reflects worst state across multiple channels
+  it('status computed is CHANNEL_ERROR when any channel errors, SUBSCRIBED when all subscribed', () => {
+    const { mock, channelMockFactory } = makeSupabaseMock();
+    const { channel: ch1, triggerStatus: triggerStatus1 } = makeChannelMock();
+    const { channel: ch2, triggerStatus: triggerStatus2 } = makeChannelMock();
+    let callCount = 0;
+    channelMockFactory.mockImplementation(() => {
+      callCount++;
+      return callCount === 1 ? ch1 : ch2;
+    });
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: mock },
+      ],
+    });
+
+    const svc = TestBed.inject(RealtimeService);
+    svc.subscribe('chan-feedings', 'feedings', undefined, vi.fn());
+    svc.subscribe('chan-diapers', 'diapers', undefined, vi.fn());
+
+    triggerStatus1('SUBSCRIBED');
+    triggerStatus2('SUBSCRIBED');
+    expect(svc.status()).toBe('SUBSCRIBED');
+
+    // One channel errors — global status must reflect it
+    triggerStatus2('CHANNEL_ERROR');
+    expect(svc.status()).toBe('CHANNEL_ERROR');
+
+    // Both recover
+    triggerStatus2('SUBSCRIBED');
+    expect(svc.status()).toBe('SUBSCRIBED');
   });
 
   it('unsubscribe() calls removeChannel', () => {
@@ -183,5 +220,35 @@ describe('RealtimeService', () => {
 
     expect(removeChannelFn).toHaveBeenCalledWith(ch1);
     expect(ch2.subscribe).toHaveBeenCalled();
+  });
+
+  // M1: retry timer is cleared when unsubscribe is called during the 10s window
+  it('retry timer is cancelled when unsubscribeChannel is called before timeout fires', () => {
+    vi.useFakeTimers();
+    const { mock, channelMockFactory } = makeSupabaseMock();
+    const { channel, triggerStatus } = makeChannelMock();
+    channelMockFactory.mockReturnValue(channel);
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: mock },
+      ],
+    });
+
+    const svc = TestBed.inject(RealtimeService);
+    const resubscribeSpy = vi.spyOn(svc as unknown as { resubscribe: () => void }, 'resubscribe');
+    const sub = svc.subscribe('feedings-baby-b1', 'feedings', 'baby_id=eq.b1', vi.fn());
+
+    triggerStatus('CHANNEL_ERROR');
+    // Unsubscribe before the 10s retry fires
+    sub.unsubscribe();
+    // Advance past the 10s retry window
+    vi.advanceTimersByTime(15_000);
+
+    // resubscribe must NOT have been called
+    expect(resubscribeSpy).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 });

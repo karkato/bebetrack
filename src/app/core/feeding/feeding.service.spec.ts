@@ -8,7 +8,7 @@ import { SessionService } from '../auth/session.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { Feeding } from './feeding.models';
 import { Baby } from '../baby/baby.models';
-import { MOCK_BABY } from '../baby/testing/baby-fixtures';
+import { MOCK_BABY, MOCK_BABY_B } from '../baby/testing/baby-fixtures';
 import { makeSessionMock } from '../auth/testing/session-mock';
 import { makeRealtimeMock, makeCapturingRealtimeMock } from '../realtime/testing/realtime-mock';
 
@@ -423,6 +423,50 @@ describe('FeedingService — Realtime subscription', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(unsubscribeFn).toHaveBeenCalled();
+  });
+
+  // S3: re-subscribe when currentBaby changes from A to B
+  it('re-souscrit quand currentBaby change de A vers B', async () => {
+    const supabaseMock = makeReadSupabaseMock(MOCK_FEEDING);
+    const babyMock = makeBabyMock(MOCK_BABY);
+    const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock, subscribeFn, unsubscribeFn } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: supabaseMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    TestBed.inject(FeedingService);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(subscribeFn).toHaveBeenCalledTimes(1);
+    expect(subscribeFn).toHaveBeenCalledWith(
+      `feedings-baby-${MOCK_BABY.id}`,
+      'feedings',
+      `baby_id=eq.${MOCK_BABY.id}`,
+      expect.any(Function),
+    );
+
+    // Switch to baby B
+    (babyMock as unknown as { _signal: ReturnType<typeof signal<Baby | null>> })._signal.set(MOCK_BABY_B);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Previous subscription must have been cleaned up
+    expect(unsubscribeFn).toHaveBeenCalledTimes(1);
+    // New subscription for baby B must have been created
+    expect(subscribeFn).toHaveBeenCalledTimes(2);
+    expect(subscribeFn).toHaveBeenLastCalledWith(
+      `feedings-baby-${MOCK_BABY_B.id}`,
+      'feedings',
+      `baby_id=eq.${MOCK_BABY_B.id}`,
+      expect.any(Function),
+    );
   });
 
   it('un event Realtime déclenche reload() sur lastFeeding et ongoingFeeding', async () => {

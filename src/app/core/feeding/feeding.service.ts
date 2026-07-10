@@ -3,7 +3,6 @@ import { BabyService } from '../baby/baby.service';
 import { SessionService } from '../auth/session.service';
 import { SupabaseService } from '../supabase.service';
 import { RealtimeService } from '../realtime/realtime.service';
-import { RealtimeSubscription } from '../realtime/realtime.models';
 import { Feeding } from './feeding.models';
 
 @Injectable({ providedIn: 'root' })
@@ -12,19 +11,14 @@ export class FeedingService {
   private readonly baby = inject(BabyService);
   private readonly sessionService = inject(SessionService);
   private readonly realtimeService = inject(RealtimeService);
-  private feedingSubscription: RealtimeSubscription | null = null;
 
   constructor() {
-    effect(() => {
+    // M3: use onCleanup for robust subscription lifecycle management
+    effect((onCleanup) => {
       const babyId = this.baby.currentBaby()?.id;
-
-      // Cleanup previous subscription
-      this.feedingSubscription?.unsubscribe();
-      this.feedingSubscription = null;
-
       if (!babyId) return;
 
-      this.feedingSubscription = this.realtimeService.subscribe(
+      const subscription = this.realtimeService.subscribe(
         `feedings-baby-${babyId}`,
         'feedings',
         `baby_id=eq.${babyId}`,
@@ -33,6 +27,8 @@ export class FeedingService {
           this.ongoingFeeding.reload();
         },
       );
+
+      onCleanup(() => subscription.unsubscribe());
     });
   }
 
