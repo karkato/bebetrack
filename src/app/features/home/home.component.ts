@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { MatBottomSheet, MatBottomSheetModule } from '@angular/material/bottom-sheet';
+import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { BabyService } from '../../core/baby/baby.service';
@@ -21,7 +21,7 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatSnackBarModule, MatBottomSheetModule],
+  imports: [MatButtonModule, MatSnackBarModule],
   template: `
     @if (baby.currentBaby() === null) {
       <div class="empty-state">

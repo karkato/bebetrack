@@ -34,6 +34,8 @@ export class FeedingService {
         .select('*')
         .eq('baby_id', babyId)
         .is('ended_at', null)
+        .order('started_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       return data as Feeding | null;
     },

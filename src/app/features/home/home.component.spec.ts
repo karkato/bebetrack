@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { vi, describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { of } from 'rxjs';
 import { HomeComponent } from './home.component';
 import { BabyService } from '../../core/baby/baby.service';
 import { DiaperService } from '../../core/diaper/diaper.service';
@@ -10,6 +11,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Baby } from '../../core/baby/baby.models';
 import { Diaper } from '../../core/diaper/diaper.models';
 import { Feeding } from '../../core/feeding/feeding.models';
+import { FeedingSheetComponent } from '../feeding/feeding-sheet.component';
 
 const MOCK_BABY: Baby = {
   id: 'b-1',
@@ -258,24 +260,29 @@ describe('HomeComponent — lastFeedingLabel avec ongoingFeeding', () => {
 describe('HomeComponent — bouton tétée', () => {
   afterEach(() => TestBed.resetTestingModule());
 
-  it('appelle openFeedingSheet quand le bouton tétée est cliqué', async () => {
-    await configure(MOCK_BABY);
+  it('openFeedingSheet ouvre FeedingSheetComponent avec les bonnes data', async () => {
+    await configure(MOCK_BABY, MOCK_FEEDING);
+
+    // Inject and spy BEFORE creating the component so the spy is in place when the template binds
+    const bottomSheet = TestBed.inject(MatBottomSheet);
+    const openSpy = vi.spyOn(bottomSheet, 'open').mockReturnValue({
+      afterDismissed: () => of(undefined),
+    } as ReturnType<MatBottomSheet['open']>);
+
     const fixture = TestBed.createComponent(HomeComponent);
     fixture.detectChanges();
-    const comp = fixture.componentInstance;
-
-    const openSheetFn = vi.fn();
-    Object.assign(comp, {
-      bottomSheet: {
-        open: openSheetFn.mockReturnValue({
-          afterDismissed: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
-        }),
-      },
-    });
 
     const btn = fixture.nativeElement.querySelector('.feeding-btn') as HTMLButtonElement;
     btn.click();
 
-    expect(openSheetFn).toHaveBeenCalled();
+    expect(openSpy).toHaveBeenCalledWith(
+      FeedingSheetComponent,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          babyId: MOCK_BABY.id,
+          preference: MOCK_BABY.feeding_preference,
+        }),
+      }),
+    );
   });
 });

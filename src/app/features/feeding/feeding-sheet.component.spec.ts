@@ -6,6 +6,7 @@ import {
   FeedingSheetData,
 } from './feeding-sheet.component';
 import { MAT_BOTTOM_SHEET_DATA, MatBottomSheetRef } from '@angular/material/bottom-sheet';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { FeedingService } from '../../core/feeding/feeding.service';
 import { Feeding } from '../../core/feeding/feeding.models';
 import { formatChrono } from '../../shared/elapsed-time';
@@ -46,6 +47,10 @@ function makeSheetRefMock() {
   return { dismiss: vi.fn() };
 }
 
+function makeSnackBarMock() {
+  return { open: vi.fn() };
+}
+
 async function configure(data: FeedingSheetData) {
   TestBed.resetTestingModule();
   await TestBed.configureTestingModule({
@@ -55,6 +60,7 @@ async function configure(data: FeedingSheetData) {
       { provide: MAT_BOTTOM_SHEET_DATA, useValue: data },
       { provide: MatBottomSheetRef, useValue: makeSheetRefMock() },
       { provide: FeedingService, useValue: makeFeedingServiceMock() },
+      { provide: MatSnackBar, useValue: makeSnackBarMock() },
     ],
   }).compileComponents();
 }
@@ -139,6 +145,93 @@ describe('FeedingSheetComponent — côté par défaut', () => {
     fixture.detectChanges();
     const comp = fixture.componentInstance as unknown as { selectedSide: () => string };
     expect(comp.selectedSide()).toBe('breast_left');
+  });
+});
+
+// ── Actions (startFeeding / stopFeeding) ─────────────────────────────────────
+
+describe('FeedingSheetComponent — action startFeeding', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('cliquer Démarrer appelle startFeeding avec le bon côté et ferme le sheet', async () => {
+    await configure({
+      ongoingFeeding: null,
+      lastFeeding: null,
+      babyId: 'b-1',
+      preference: 'breast',
+    });
+    const feedingService = TestBed.inject(FeedingService);
+    const sheetRef = TestBed.inject(MatBottomSheetRef);
+    const startSpy = vi.spyOn(feedingService, 'startFeeding').mockResolvedValue(MOCK_FEEDING_DONE as never);
+    const dismissSpy = vi.spyOn(sheetRef, 'dismiss');
+
+    const fixture = TestBed.createComponent(FeedingSheetComponent);
+    fixture.detectChanges();
+
+    // Find the "Démarrer" button by its text content
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    const btn = buttons.find(b => b.textContent?.trim() === 'Démarrer');
+    expect(btn).toBeTruthy();
+    btn!.click();
+    await fixture.whenStable();
+
+    expect(startSpy).toHaveBeenCalledWith('b-1', 'breast_left');
+    expect(dismissSpy).toHaveBeenCalledWith({ action: 'started' });
+  });
+
+  it('cliquer Arrêter appelle stopFeeding et ferme le sheet', async () => {
+    await configure({
+      ongoingFeeding: MOCK_FEEDING_ONGOING,
+      lastFeeding: null,
+      babyId: 'b-1',
+      preference: 'breast',
+    });
+    const feedingService = TestBed.inject(FeedingService);
+    const sheetRef = TestBed.inject(MatBottomSheetRef);
+    const stopSpy = vi.spyOn(feedingService, 'stopFeeding').mockResolvedValue(undefined as never);
+    const dismissSpy = vi.spyOn(sheetRef, 'dismiss');
+
+    const fixture = TestBed.createComponent(FeedingSheetComponent);
+    fixture.detectChanges();
+
+    const btn = fixture.nativeElement.querySelector('button[mat-flat-button]') as HTMLButtonElement;
+    btn.click();
+    await fixture.whenStable();
+
+    expect(stopSpy).toHaveBeenCalledWith(MOCK_FEEDING_ONGOING.id);
+    expect(dismissSpy).toHaveBeenCalledWith({ action: 'stopped' });
+  });
+
+  it('échec startFeeding affiche une snackbar et ne ferme pas le sheet', async () => {
+    await configure({
+      ongoingFeeding: null,
+      lastFeeding: null,
+      babyId: 'b-1',
+      preference: 'breast',
+    });
+    const feedingService = TestBed.inject(FeedingService);
+    const sheetRef = TestBed.inject(MatBottomSheetRef);
+    const snackBar = TestBed.inject(MatSnackBar);
+    vi.spyOn(feedingService, 'startFeeding').mockRejectedValue(new Error('network'));
+    const dismissSpy = vi.spyOn(sheetRef, 'dismiss');
+    const snackSpy = vi.spyOn(snackBar, 'open');
+
+    const fixture = TestBed.createComponent(FeedingSheetComponent);
+    fixture.detectChanges();
+
+    // Find the "Démarrer" button by its text content
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    const btn = buttons.find(b => b.textContent?.trim() === 'Démarrer');
+    expect(btn).toBeTruthy();
+    btn!.click();
+    await fixture.whenStable();
+
+    expect(dismissSpy).not.toHaveBeenCalled();
+    expect(snackSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Impossible'),
+      undefined,
+      expect.any(Object),
+    );
   });
 });
 

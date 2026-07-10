@@ -31,9 +31,10 @@ const MOCK_BABY: Baby = {
 /** Builds a Supabase mock for the lastFeeding/ongoingFeeding read path */
 function makeReadSupabaseMock(returnedFeeding: Feeding | null) {
   const maybeSingleFn = vi.fn().mockResolvedValue({ data: returnedFeeding, error: null });
-  const isFn = vi.fn().mockReturnValue({ maybeSingle: maybeSingleFn });
   const limitFn = vi.fn().mockReturnValue({ maybeSingle: maybeSingleFn });
   const orderFn = vi.fn().mockReturnValue({ limit: limitFn });
+  // is() is used by ongoingFeeding — now also chains .order().limit().maybeSingle()
+  const isFn = vi.fn().mockReturnValue({ order: orderFn });
   const eqFn = vi.fn().mockReturnValue({ order: orderFn, is: isFn });
   const selectFn = vi.fn().mockReturnValue({ eq: eqFn });
   return {

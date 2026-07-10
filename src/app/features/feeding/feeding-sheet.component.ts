@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { MAT_BOTTOM_SHEET_DATA, MatBottomSheetRef } from '@angular/material/bottom-sheet';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { FeedingPreference } from '../../core/baby/baby.models';
 import { Feeding } from '../../core/feeding/feeding.models';
 import { FeedingService } from '../../core/feeding/feeding.service';
@@ -66,6 +67,7 @@ export class FeedingSheetComponent {
   protected readonly data = inject<FeedingSheetData>(MAT_BOTTOM_SHEET_DATA);
   private readonly sheetRef = inject(MatBottomSheetRef);
   private readonly feedingService = inject(FeedingService);
+  private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly mode = computed(() => (this.data.ongoingFeeding ? 'stop' : 'start'));
@@ -109,8 +111,8 @@ export class FeedingSheetComponent {
     try {
       await this.feedingService.startFeeding(this.data.babyId, side);
       this.sheetRef.dismiss({ action: 'started' });
-    } catch (err) {
-      console.error('startFeeding error', err);
+    } catch {
+      this.snackBar.open('Impossible de démarrer la tétée', undefined, { duration: 3000 });
     }
   }
 
@@ -120,8 +122,8 @@ export class FeedingSheetComponent {
     try {
       await this.feedingService.stopFeeding(ongoing.id);
       this.sheetRef.dismiss({ action: 'stopped' });
-    } catch (err) {
-      console.error('stopFeeding error', err);
+    } catch {
+      this.snackBar.open('Impossible d\'arrêter la tétée', undefined, { duration: 3000 });
     }
   }
 
@@ -129,10 +131,10 @@ export class FeedingSheetComponent {
     const ml = this.amountMl();
     if (ml < 1) return;
     try {
-      await this.feedingService.recordBottleFeeding(this.data.babyId, ml);
+      await this.feedingService.recordBottleFeeding(this.data.babyId, Math.round(ml));
       this.sheetRef.dismiss({ action: 'bottle' });
-    } catch (err) {
-      console.error('recordBottleFeeding error', err);
+    } catch {
+      this.snackBar.open('Impossible d\'enregistrer le biberon', undefined, { duration: 3000 });
     }
   }
 
