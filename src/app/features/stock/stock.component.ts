@@ -135,22 +135,16 @@ export class StockComponent {
   private readonly dialog = inject(MatDialog);
 
   async decrement(item: StockItem): Promise<void> {
-    try {
-      const movement = await this.stockService.addMovement(item.id, -1, 'manual');
-      const ref = this.snackBar.open('Stock mis à jour', 'Annuler', { duration: 5000 });
-      ref.onAction().subscribe(() => {
-        this.stockService.deleteMovement(movement.id).catch(() => {
-          this.snackBar.open('Annulation impossible', undefined, { duration: 3000 });
-        });
-      });
-    } catch {
-      this.snackBar.open('Erreur lors de la mise à jour', undefined, { duration: 3000 });
-    }
+    return this.applyDelta(item, -1);
   }
 
   async increment(item: StockItem): Promise<void> {
+    return this.applyDelta(item, 1);
+  }
+
+  private async applyDelta(item: StockItem, delta: 1 | -1): Promise<void> {
     try {
-      const movement = await this.stockService.addMovement(item.id, 1, 'manual');
+      const movement = await this.stockService.addMovement(item.id, delta, 'manual');
       const ref = this.snackBar.open('Stock mis à jour', 'Annuler', { duration: 5000 });
       ref.onAction().subscribe(() => {
         this.stockService.deleteMovement(movement.id).catch(() => {

@@ -7,41 +7,10 @@ import { HouseholdService } from '../household/household.service';
 import { SessionService } from '../auth/session.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { makeHouseholdMock, MOCK_HOUSEHOLD } from '../household/testing/household-mock';
+import { makeSessionMock } from '../auth/testing/session-mock';
+import { makeRealtimeMock } from '../realtime/testing/realtime-mock';
+import { MOCK_ITEM, MOCK_MOVEMENT } from './testing/stock-fixtures';
 import { StockItem, StockMovement } from './stock.models';
-
-const MOCK_USER = { id: 'user-1' };
-
-function makeSessionMock(userId: string | null = MOCK_USER.id) {
-  return {
-    user: vi.fn().mockReturnValue(userId ? { id: userId } : null),
-  } as unknown as SessionService;
-}
-
-function makeRealtimeMock() {
-  const unsubscribe = vi.fn();
-  const subscribe = vi.fn().mockReturnValue({ unsubscribe });
-  return { service: { subscribe } as unknown as RealtimeService, subscribe, unsubscribe };
-}
-
-const MOCK_ITEM: StockItem = {
-  id: 'item-1',
-  household_id: MOCK_HOUSEHOLD.id,
-  label: 'Couches',
-  quantity: 10,
-  alert_threshold: 3,
-  auto_decrement_on_diaper: true,
-  created_at: '2026-01-01T00:00:00Z',
-};
-
-const MOCK_MOVEMENT: StockMovement = {
-  id: 'mov-1',
-  stock_item_id: 'item-1',
-  delta: -1,
-  reason: 'manual',
-  at: '2026-01-01T00:00:00Z',
-  created_by: MOCK_USER.id,
-  created_at: '2026-01-01T00:00:00Z',
-};
 
 function makeSupabaseMock(overrides?: {
   fromItems?: StockItem[];
@@ -93,8 +62,8 @@ describe('StockService', () => {
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: supabaseMock },
           { provide: HouseholdService, useValue: householdMock },
-          { provide: SessionService, useValue: makeSessionMock() },
-          { provide: RealtimeService, useValue: realtimeMock.service },
+          { provide: SessionService, useValue: makeSessionMock('user-1') },
+          { provide: RealtimeService, useValue: realtimeMock.mock },
         ],
       }).compileComponents();
 
@@ -116,8 +85,8 @@ describe('StockService', () => {
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: supabaseMock },
           { provide: HouseholdService, useValue: householdMock },
-          { provide: SessionService, useValue: makeSessionMock() },
-          { provide: RealtimeService, useValue: realtimeMock.service },
+          { provide: SessionService, useValue: makeSessionMock('user-1') },
+          { provide: RealtimeService, useValue: realtimeMock.mock },
         ],
       }).compileComponents();
 
@@ -140,8 +109,8 @@ describe('StockService', () => {
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: supabaseMock },
           { provide: HouseholdService, useValue: householdMock },
-          { provide: SessionService, useValue: makeSessionMock() },
-          { provide: RealtimeService, useValue: realtimeMock.service },
+          { provide: SessionService, useValue: makeSessionMock('user-1') },
+          { provide: RealtimeService, useValue: realtimeMock.mock },
         ],
       }).compileComponents();
 
@@ -163,7 +132,7 @@ describe('StockService', () => {
           { provide: SupabaseService, useValue: supabaseMock },
           { provide: HouseholdService, useValue: householdMock },
           { provide: SessionService, useValue: makeSessionMock(null) },
-          { provide: RealtimeService, useValue: realtimeMock.service },
+          { provide: RealtimeService, useValue: realtimeMock.mock },
         ],
       }).compileComponents();
 
@@ -183,8 +152,8 @@ describe('StockService', () => {
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: supabaseMock },
           { provide: HouseholdService, useValue: householdMock },
-          { provide: SessionService, useValue: makeSessionMock() },
-          { provide: RealtimeService, useValue: realtimeMock.service },
+          { provide: SessionService, useValue: makeSessionMock('user-1') },
+          { provide: RealtimeService, useValue: realtimeMock.mock },
         ],
       }).compileComponents();
 
@@ -206,15 +175,15 @@ describe('StockService', () => {
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: supabaseMock },
           { provide: HouseholdService, useValue: householdMock },
-          { provide: SessionService, useValue: makeSessionMock() },
-          { provide: RealtimeService, useValue: realtimeMock.service },
+          { provide: SessionService, useValue: makeSessionMock('user-1') },
+          { provide: RealtimeService, useValue: realtimeMock.mock },
         ],
       }).compileComponents();
 
       TestBed.inject(StockService);
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(realtimeMock.subscribe).toHaveBeenCalledWith(
+      expect(realtimeMock.subscribeFn).toHaveBeenCalledWith(
         `stock-movements-${MOCK_HOUSEHOLD.id}`,
         'stock_movements',
         undefined,
@@ -239,7 +208,7 @@ describe('StockService', () => {
           provideZonelessChangeDetection(),
           { provide: SupabaseService, useValue: supabaseMock },
           { provide: HouseholdService, useValue: householdMock },
-          { provide: SessionService, useValue: makeSessionMock() },
+          { provide: SessionService, useValue: makeSessionMock('user-1') },
           { provide: RealtimeService, useValue: realtimeService },
         ],
       }).compileComponents();

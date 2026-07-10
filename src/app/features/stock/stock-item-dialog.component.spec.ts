@@ -4,17 +4,7 @@ import { vi, describe, it, expect } from 'vitest';
 import { By } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { StockItemDialogComponent, StockItemDialogData } from './stock-item-dialog.component';
-import { StockItem } from '../../core/stock/stock.models';
-
-const MOCK_ITEM: StockItem = {
-  id: 'item-1',
-  household_id: 'hh-1',
-  label: 'Couches',
-  quantity: 5,
-  alert_threshold: 2,
-  auto_decrement_on_diaper: true,
-  created_at: '2026-01-01T00:00:00Z',
-};
+import { MOCK_ITEM } from '../../core/stock/testing/stock-fixtures';
 
 function makeDialogRefMock() {
   return { close: vi.fn() } as unknown as MatDialogRef<StockItemDialogComponent>;
