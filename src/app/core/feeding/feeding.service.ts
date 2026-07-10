@@ -1,7 +1,8 @@
-import { Injectable, inject, resource } from '@angular/core';
+import { Injectable, inject, resource, effect } from '@angular/core';
 import { BabyService } from '../baby/baby.service';
 import { SessionService } from '../auth/session.service';
 import { SupabaseService } from '../supabase.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { Feeding } from './feeding.models';
 
 @Injectable({ providedIn: 'root' })
@@ -9,6 +10,27 @@ export class FeedingService {
   private readonly supabase = inject(SupabaseService);
   private readonly baby = inject(BabyService);
   private readonly sessionService = inject(SessionService);
+  private readonly realtimeService = inject(RealtimeService);
+
+  constructor() {
+    // M3: use onCleanup for robust subscription lifecycle management
+    effect((onCleanup) => {
+      const babyId = this.baby.currentBaby()?.id;
+      if (!babyId) return;
+
+      const subscription = this.realtimeService.subscribe(
+        `feedings-baby-${babyId}`,
+        'feedings',
+        `baby_id=eq.${babyId}`,
+        () => {
+          this.lastFeeding.reload();
+          this.ongoingFeeding.reload();
+        },
+      );
+
+      onCleanup(() => subscription.unsubscribe());
+    });
+  }
 
   readonly lastFeeding = resource({
     params: () => ({ babyId: this.baby.currentBaby()?.id ?? null }),

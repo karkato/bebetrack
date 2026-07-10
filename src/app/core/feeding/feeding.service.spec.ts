@@ -5,8 +5,12 @@ import { FeedingService } from './feeding.service';
 import { SupabaseService } from '../supabase.service';
 import { BabyService } from '../baby/baby.service';
 import { SessionService } from '../auth/session.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { Feeding } from './feeding.models';
 import { Baby } from '../baby/baby.models';
+import { MOCK_BABY, MOCK_BABY_B } from '../baby/testing/baby-fixtures';
+import { makeSessionMock } from '../auth/testing/session-mock';
+import { makeRealtimeMock, makeCapturingRealtimeMock } from '../realtime/testing/realtime-mock';
 
 const MOCK_FEEDING: Feeding = {
   id: 'f-1',
@@ -17,15 +21,6 @@ const MOCK_FEEDING: Feeding = {
   amount_ml: null,
   created_by: 'user-1',
   created_at: '2026-01-01T08:00:00Z',
-};
-
-const MOCK_BABY: Baby = {
-  id: 'b-1',
-  household_id: 'hh-1',
-  name: 'Léa',
-  birth_date: '2026-01-01',
-  feeding_preference: 'mixed',
-  created_at: '',
 };
 
 /** Builds a Supabase mock for the lastFeeding/ongoingFeeding read path */
@@ -47,15 +42,9 @@ function makeReadSupabaseMock(returnedFeeding: Feeding | null) {
 function makeBabyMock(baby: Baby | null) {
   const babySignal = signal(baby);
   return {
+    _signal: babySignal,
     currentBaby: babySignal.asReadonly(),
-  } as unknown as BabyService;
-}
-
-function makeSessionMock(userId: string | null) {
-  const userSignal = signal(userId ? { id: userId } : null);
-  return {
-    user: userSignal.asReadonly(),
-  } as unknown as SessionService;
+  } as unknown as BabyService & { _signal: ReturnType<typeof signal<Baby | null>> };
 }
 
 // ── resource tests ────────────────────────────────────────────────────────────
@@ -67,6 +56,7 @@ describe('FeedingService — lastFeeding resource', () => {
     const supabaseMock = makeReadSupabaseMock(null);
     const babyMock = makeBabyMock(null);
     const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -74,6 +64,7 @@ describe('FeedingService — lastFeeding resource', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
@@ -86,6 +77,7 @@ describe('FeedingService — lastFeeding resource', () => {
     const supabaseMock = makeReadSupabaseMock(MOCK_FEEDING);
     const babyMock = makeBabyMock(MOCK_BABY);
     const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -93,6 +85,7 @@ describe('FeedingService — lastFeeding resource', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
@@ -112,6 +105,7 @@ describe('FeedingService — ongoingFeeding resource', () => {
     const supabaseMock = makeReadSupabaseMock(null);
     const babyMock = makeBabyMock(MOCK_BABY);
     const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -119,6 +113,7 @@ describe('FeedingService — ongoingFeeding resource', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
@@ -133,6 +128,7 @@ describe('FeedingService — ongoingFeeding resource', () => {
     const supabaseMock = makeReadSupabaseMock(ongoingFeeding);
     const babyMock = makeBabyMock(MOCK_BABY);
     const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -140,6 +136,7 @@ describe('FeedingService — ongoingFeeding resource', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
@@ -177,6 +174,7 @@ describe('FeedingService — startFeeding', () => {
 
     const babyMock = makeBabyMock(null);
     const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -184,6 +182,7 @@ describe('FeedingService — startFeeding', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
@@ -202,6 +201,7 @@ describe('FeedingService — startFeeding', () => {
     const supabaseMock = makeReadSupabaseMock(null);
     const babyMock = makeBabyMock(null);
     const sessionMock = makeSessionMock(null);
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -209,6 +209,7 @@ describe('FeedingService — startFeeding', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
@@ -240,6 +241,7 @@ describe('FeedingService — stopFeeding', () => {
 
     const babyMock = makeBabyMock(null);
     const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -247,6 +249,7 @@ describe('FeedingService — stopFeeding', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
@@ -290,6 +293,7 @@ describe('FeedingService — recordBottleFeeding', () => {
 
     const babyMock = makeBabyMock(null);
     const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -297,6 +301,7 @@ describe('FeedingService — recordBottleFeeding', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
@@ -323,6 +328,7 @@ describe('FeedingService — recordBottleFeeding', () => {
     const supabaseMock = makeReadSupabaseMock(null);
     const babyMock = makeBabyMock(null);
     const sessionMock = makeSessionMock(null);
+    const { mock: realtimeMock } = makeRealtimeMock();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -330,10 +336,166 @@ describe('FeedingService — recordBottleFeeding', () => {
         { provide: SupabaseService, useValue: supabaseMock },
         { provide: BabyService, useValue: babyMock },
         { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
       ],
     }).compileComponents();
 
     const svc = TestBed.inject(FeedingService);
     await expect(svc.recordBottleFeeding('b-1', 90)).rejects.toThrow('Not authenticated');
+  });
+});
+
+// ── Realtime tests ────────────────────────────────────────────────────────────
+
+describe('FeedingService — Realtime subscription', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('appelle subscribe() avec table feedings et le bon filtre quand currentBaby est défini', async () => {
+    const supabaseMock = makeReadSupabaseMock(MOCK_FEEDING);
+    const babyMock = makeBabyMock(MOCK_BABY);
+    const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock, subscribeFn } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: supabaseMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    TestBed.inject(FeedingService);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(subscribeFn).toHaveBeenCalledWith(
+      'feedings-baby-b-1',
+      'feedings',
+      'baby_id=eq.b-1',
+      expect.any(Function),
+    );
+  });
+
+  it("n'appelle pas subscribe() quand currentBaby est null", async () => {
+    const supabaseMock = makeReadSupabaseMock(null);
+    const babyMock = makeBabyMock(null);
+    const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock, subscribeFn } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: supabaseMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    TestBed.inject(FeedingService);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(subscribeFn).not.toHaveBeenCalled();
+  });
+
+  it('appelle unsubscribe() quand currentBaby passe à null', async () => {
+    const supabaseMock = makeReadSupabaseMock(MOCK_FEEDING);
+    const babyMock = makeBabyMock(MOCK_BABY);
+    const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock, unsubscribeFn } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: supabaseMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    TestBed.inject(FeedingService);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Change baby to null — triggers effect cleanup
+    (babyMock as unknown as { _signal: ReturnType<typeof signal<Baby | null>> })._signal.set(null);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(unsubscribeFn).toHaveBeenCalled();
+  });
+
+  // S3: re-subscribe when currentBaby changes from A to B
+  it('re-souscrit quand currentBaby change de A vers B', async () => {
+    const supabaseMock = makeReadSupabaseMock(MOCK_FEEDING);
+    const babyMock = makeBabyMock(MOCK_BABY);
+    const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock, subscribeFn, unsubscribeFn } = makeRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: supabaseMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    TestBed.inject(FeedingService);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(subscribeFn).toHaveBeenCalledTimes(1);
+    expect(subscribeFn).toHaveBeenCalledWith(
+      `feedings-baby-${MOCK_BABY.id}`,
+      'feedings',
+      `baby_id=eq.${MOCK_BABY.id}`,
+      expect.any(Function),
+    );
+
+    // Switch to baby B
+    (babyMock as unknown as { _signal: ReturnType<typeof signal<Baby | null>> })._signal.set(MOCK_BABY_B);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Previous subscription must have been cleaned up
+    expect(unsubscribeFn).toHaveBeenCalledTimes(1);
+    // New subscription for baby B must have been created
+    expect(subscribeFn).toHaveBeenCalledTimes(2);
+    expect(subscribeFn).toHaveBeenLastCalledWith(
+      `feedings-baby-${MOCK_BABY_B.id}`,
+      'feedings',
+      `baby_id=eq.${MOCK_BABY_B.id}`,
+      expect.any(Function),
+    );
+  });
+
+  it('un event Realtime déclenche reload() sur lastFeeding et ongoingFeeding', async () => {
+    const supabaseMock = makeReadSupabaseMock(MOCK_FEEDING);
+    const babyMock = makeBabyMock(MOCK_BABY);
+    const sessionMock = makeSessionMock('user-1');
+    const { mock: realtimeMock, holder } = makeCapturingRealtimeMock();
+
+    await TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: SupabaseService, useValue: supabaseMock },
+        { provide: BabyService, useValue: babyMock },
+        { provide: SessionService, useValue: sessionMock },
+        { provide: RealtimeService, useValue: realtimeMock },
+      ],
+    }).compileComponents();
+
+    const svc = TestBed.inject(FeedingService);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Spy on reload after initial load
+    const reloadLast = vi.spyOn(svc.lastFeeding, 'reload');
+    const reloadOngoing = vi.spyOn(svc.ongoingFeeding, 'reload');
+
+    // Simulate a Realtime event
+    holder.cb?.();
+
+    expect(reloadLast).toHaveBeenCalled();
+    expect(reloadOngoing).toHaveBeenCalled();
   });
 });
