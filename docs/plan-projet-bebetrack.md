@@ -143,12 +143,29 @@ Boutons contextuels : depuis un produit en stock (« 📢 Prévenir : plus que N
 ✅ Critères : mode avion → enregistrer 2 couches et 1 tétée → retour réseau → tout apparaît sur l'autre téléphone dans le bon ordre.
 📌 Instruction à l'Analyste : produire d'abord un plan de découpage de ce ticket en 3-4 sous-tickets avant tout développement.
 
+### Phase D — Suivi médical (tickets 14 à 16)
+
+> 🎯 À démarrer après la phase C (offline-first stable). Ces fonctionnalités enrichissent le suivi sans modifier le cœur de l'app.
+
+**Ticket 14 — Fiche du bébé**
+Écran de profil du bébé : nom, date de naissance, photo (stockée dans Supabase Storage), âge calculé en temps réel. Édition des informations de base. Point d'entrée naturel pour les fonctionnalités médicales.
+✅ Critères : la fiche est accessible depuis l'accueil ; la photo s'affiche sur les deux téléphones ; l'âge s'actualise au jour.
+
+**Ticket 15 — Médicaments**
+Enregistrement d'une prise de médicament (nom, dose, heure) en ≤ 2 taps depuis l'accueil, historique des prises du jour, rappel push si une dose est planifiée (s'appuie sur l'infrastructure ticket 10/11). Stock optionnel (nombre de doses restantes).
+✅ Critères : enregistrer une prise = 2 taps max ; l'historique reflète les deux parents ; un rappel push déclenche bien la notification.
+
+**Ticket 16 — Carnet de santé**
+Suivi des mesures (poids, taille, périmètre crânien) avec courbe de croissance Material Charts ou SVG custom, historique des visites médicales (date, médecin, notes libres), suivi des vaccins (date, vaccin, lot). Données saisies via Signal Forms.
+✅ Critères : la courbe de poids s'affiche correctement avec au moins 3 mesures ; une visite médicale est consultable par les deux parents ; l'export PDF est hors scope (phase E éventuelle).
+📌 Instruction à l'Analyste : valider le modèle de données (nouvelles tables `measurements`, `medical_visits`, `vaccines`) et les migrations RLS avant tout développement.
+
 ---
 
 ## 6. Hors scope V1 (ne pas implémenter, ne pas préparer « au cas où »)
 
 - Backend Go (V2 : réécriture de la couche Supabase — API REST + WebSockets + PostgreSQL — une fois la V1 stable et utilisée).
-- Courbes de poids/taille, sommeil, multi-bébés, export PDF, partage au-delà de 2 parents, chat.
+- Multi-bébés, export PDF, partage au-delà de 2 parents, chat.
 
 ## 7. Rappels pour l'orchestrateur
 
