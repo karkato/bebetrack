@@ -33,6 +33,9 @@ end;
 $$;
 
 -- Symmetric undo RPC
+-- KNOWN DEBT: movements are matched by time window (±5 s) + reason + created_by rather
+-- than a direct FK. Two diapers recorded within 5 s by the same user could lose each
+-- other's stock movements. MVP-acceptable; proper fix = add stock_movements.diaper_id FK.
 create or replace function public.delete_diaper_with_stock(p_diaper_id uuid)
 returns void
 language plpgsql
