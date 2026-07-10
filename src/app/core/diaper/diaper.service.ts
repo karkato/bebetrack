@@ -38,31 +38,41 @@ export class DiaperService {
   async createDiaper(babyId: string, kind: DiaperKind): Promise<Diaper> {
     const userId = this.session.user()?.id;
     if (!userId) throw new Error('Not authenticated');
+
+    // Attempt atomic RPC: insert diaper + auto-decrement stock
+    // If RPC fails (unavailable or stock error), fall through to direct insert
+    let rpcDiaperId: string | null = null;
     try {
-      // Atomic RPC: insert diaper + auto-decrement stock
       const { data, error } = await this.supabase.client.rpc('record_diaper_with_stock', {
         p_baby_id: babyId,
         p_kind: kind,
       });
-      if (error) throw error;
-      const diaperId = (data as { diaper_id: string }).diaper_id;
-      const { data: diaper, error: fetchError } = await this.supabase.client
-        .from('diapers')
-        .select('*')
-        .eq('id', diaperId)
-        .single();
-      if (fetchError) throw fetchError;
-      return diaper as Diaper;
+      if (!error && data) {
+        rpcDiaperId = (data as { diaper_id: string }).diaper_id;
+      }
     } catch {
-      // Fallback: insert diaper only (best-effort — action must not be blocked by stock error)
+      // RPC unavailable — fall through to direct insert
+    }
+
+    if (rpcDiaperId) {
+      // RPC succeeded: fetch the created diaper (throws if fetch fails — no double insert)
       const { data, error } = await this.supabase.client
         .from('diapers')
-        .insert({ baby_id: babyId, kind, created_by: userId })
-        .select()
+        .select('*')
+        .eq('id', rpcDiaperId)
         .single();
       if (error) throw error;
       return data as Diaper;
     }
+
+    // Fallback: insert diaper directly (stock not decremented)
+    const { data, error } = await this.supabase.client
+      .from('diapers')
+      .insert({ baby_id: babyId, kind, created_by: userId })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Diaper;
   }
 
   async deleteDiaper(id: string): Promise<void> {

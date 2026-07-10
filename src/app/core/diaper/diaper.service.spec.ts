@@ -21,20 +21,43 @@ const MOCK_DIAPER: Diaper = {
   created_at: '2026-01-01T10:00:00Z',
 };
 
-function makeSupabaseMock(returnedDiaper: Diaper | null = MOCK_DIAPER) {
-  const singleFn = vi.fn().mockResolvedValue({ data: returnedDiaper, error: null });
-  const selectFn = vi.fn().mockReturnValue({ single: singleFn });
-  const insertFn = vi.fn().mockReturnValue({ select: selectFn });
+function makeSupabaseMock(options?: {
+  returnedDiaper?: Diaper | null;
+  rpcResult?: { data: unknown; error: Error | null };
+}) {
+  const returnedDiaper = options?.returnedDiaper ?? MOCK_DIAPER;
+
+  // Refetch chain: from().select('*').eq('id', id).single()
+  const refetchSingleFn = vi.fn().mockResolvedValue({ data: returnedDiaper, error: null });
+  const refetchEqFn = vi.fn().mockReturnValue({ single: refetchSingleFn });
+  const refetchSelectFn = vi.fn().mockReturnValue({ eq: refetchEqFn });
+
+  // Insert fallback chain: from().insert().select().single()
+  const insertSingleFn = vi.fn().mockResolvedValue({ data: returnedDiaper, error: null });
+  const insertSelectFn = vi.fn().mockReturnValue({ single: insertSingleFn });
+  const insertFn = vi.fn().mockReturnValue({ select: insertSelectFn });
+
+  // Delete chain: from().delete().eq()
   const eqFn = vi.fn().mockResolvedValue({ data: null, error: null });
   const deleteFn = vi.fn().mockReturnValue({ eq: eqFn });
+
+  // RPC — default: succeeds and returns diaper_id; tests can override
+  const defaultRpcResult = options?.rpcResult ?? {
+    data: { diaper_id: returnedDiaper?.id ?? 'd-1' },
+    error: null,
+  };
+  const rpcFn = vi.fn().mockResolvedValue(defaultRpcResult);
+
   return {
     client: {
       from: vi.fn().mockReturnValue({
         insert: insertFn,
         delete: deleteFn,
+        select: refetchSelectFn,
       }),
+      rpc: rpcFn,
     },
-    _mocks: { insertFn, selectFn, singleFn, deleteFn, eqFn },
+    _mocks: { insertFn, insertSelectFn, insertSingleFn, deleteFn, eqFn, refetchSelectFn, refetchEqFn, refetchSingleFn, rpcFn },
   } as unknown as SupabaseService & { _mocks: Record<string, ReturnType<typeof vi.fn>> };
 }
 
@@ -46,14 +69,14 @@ function makeBabyMock(baby: Baby | null) {
   } as unknown as BabyService & { _signal: ReturnType<typeof signal<Baby | null>> };
 }
 
-// ── existing mutation tests ────────────────────────────────────────────────────
+// ── mutation tests ────────────────────────────────────────────────────────────
 
 describe('DiaperService', () => {
-  describe('createDiaper — passe created_by depuis la session', () => {
+  describe('createDiaper — chemin RPC atomique', () => {
     afterEach(() => TestBed.resetTestingModule());
 
-    it('insère avec le bon userId et le bon kind', async () => {
-      const mock = makeSupabaseMock();
+    it('utilise la RPC et retourne le diaper via refetch', async () => {
+      const mock = makeSupabaseMock(); // RPC succeeds by default
       const sessionMock = makeSessionMock('user-42');
       const babyMock = makeBabyMock(null);
       const { mock: realtimeMock } = makeRealtimeMock();
@@ -71,14 +94,44 @@ describe('DiaperService', () => {
       const svc = TestBed.inject(DiaperService);
       const result = await svc.createDiaper('b-1', 'dirty');
 
-      // RPC not mocked → fallback to direct insert
-      expect(mock.client.from).toHaveBeenCalledWith('diapers');
-      const insertArg = (mock as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks['insertFn'].mock.calls[0][0];
+      const mocks = (mock as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks;
+      expect(mocks['rpcFn']).toHaveBeenCalledWith('record_diaper_with_stock', { p_baby_id: 'b-1', p_kind: 'dirty' });
+      // insert NOT called — RPC handled the insert
+      expect(mocks['insertFn']).not.toHaveBeenCalled();
+      // refetch via from().select().eq().single()
+      expect(mocks['refetchEqFn']).toHaveBeenCalledWith('id', MOCK_DIAPER.id);
+      expect(result).toEqual(MOCK_DIAPER);
+    });
+
+    it('bascule sur l\'insert direct si la RPC retourne une erreur', async () => {
+      const mock = makeSupabaseMock({
+        rpcResult: { data: null, error: new Error('rpc error') },
+      });
+      const sessionMock = makeSessionMock('user-42');
+      const babyMock = makeBabyMock(null);
+      const { mock: realtimeMock } = makeRealtimeMock();
+
+      await TestBed.configureTestingModule({
+        providers: [
+          provideZonelessChangeDetection(),
+          { provide: SupabaseService, useValue: mock },
+          { provide: SessionService, useValue: sessionMock },
+          { provide: BabyService, useValue: babyMock },
+          { provide: RealtimeService, useValue: realtimeMock },
+        ],
+      }).compileComponents();
+
+      const svc = TestBed.inject(DiaperService);
+      const result = await svc.createDiaper('b-1', 'dirty');
+
+      const mocks = (mock as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks;
+      // Fallback: insert direct called, refetch NOT called
+      const insertArg = mocks['insertFn'].mock.calls[0][0];
       expect(insertArg.baby_id).toBe('b-1');
       expect(insertArg.kind).toBe('dirty');
       expect(insertArg.created_by).toBe('user-42');
-      // 'at' is now managed by DB default — not sent in fallback insert
       expect(insertArg.at).toBeUndefined();
+      expect(mocks['refetchEqFn']).not.toHaveBeenCalled();
       expect(result).toEqual(MOCK_DIAPER);
     });
 
@@ -103,11 +156,38 @@ describe('DiaperService', () => {
     });
   });
 
-  describe('deleteDiaper — appelle delete avec le bon id', () => {
+  describe('deleteDiaper — chemin RPC symétrique', () => {
     afterEach(() => TestBed.resetTestingModule());
 
-    it('supprime la couche par id', async () => {
-      const mock = makeSupabaseMock();
+    it('utilise la RPC delete_diaper_with_stock', async () => {
+      const mock = makeSupabaseMock(); // rpc succeeds by default
+      const sessionMock = makeSessionMock('user-42');
+      const babyMock = makeBabyMock(null);
+      const { mock: realtimeMock } = makeRealtimeMock();
+
+      await TestBed.configureTestingModule({
+        providers: [
+          provideZonelessChangeDetection(),
+          { provide: SupabaseService, useValue: mock },
+          { provide: SessionService, useValue: sessionMock },
+          { provide: BabyService, useValue: babyMock },
+          { provide: RealtimeService, useValue: realtimeMock },
+        ],
+      }).compileComponents();
+
+      const svc = TestBed.inject(DiaperService);
+      await svc.deleteDiaper('d-99');
+
+      const mocks = (mock as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks;
+      expect(mocks['rpcFn']).toHaveBeenCalledWith('delete_diaper_with_stock', { p_diaper_id: 'd-99' });
+      // from() NOT called — RPC handled the delete
+      expect(mock.client.from).not.toHaveBeenCalled();
+    });
+
+    it('bascule sur le delete direct si la RPC échoue', async () => {
+      const mock = makeSupabaseMock({
+        rpcResult: { data: null, error: new Error('rpc error') },
+      });
       const sessionMock = makeSessionMock('user-42');
       const babyMock = makeBabyMock(null);
       const { mock: realtimeMock } = makeRealtimeMock();
@@ -126,8 +206,8 @@ describe('DiaperService', () => {
       await svc.deleteDiaper('d-99');
 
       expect(mock.client.from).toHaveBeenCalledWith('diapers');
-      const eqFn = (mock as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks['eqFn'];
-      expect(eqFn).toHaveBeenCalledWith('id', 'd-99');
+      const mocks = (mock as unknown as { _mocks: Record<string, ReturnType<typeof vi.fn>> })._mocks;
+      expect(mocks['eqFn']).toHaveBeenCalledWith('id', 'd-99');
     });
   });
 });
