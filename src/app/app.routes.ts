@@ -27,6 +27,12 @@ export const routes: Routes = [
     canMatch: [authGuard, householdGuard],
   },
   {
+    path: 'stock',
+    loadComponent: () =>
+      import('./features/stock/stock.component').then(m => m.StockComponent),
+    canMatch: [authGuard, householdGuard],
+  },
+  {
     path: '**',
     redirectTo: '',
   },
