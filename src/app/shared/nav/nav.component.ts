@@ -16,10 +16,10 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         <span class="nav-icon">inventory_2</span>
         <span class="nav-label">Stock</span>
       </a>
-      <a routerLink="/timeline" routerLinkActive="active">
+      <span class="nav-item nav-item--disabled">
         <span class="nav-icon">timeline</span>
         <span class="nav-label">Timeline</span>
-      </a>
+      </span>
     </nav>
   `,
   styles: `
@@ -53,6 +53,23 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 
     .bottom-nav a.active {
       color: var(--mat-sys-primary);
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex: 1;
+      height: 100%;
+      color: var(--mat-sys-on-surface-variant);
+      font-size: 0.75rem;
+    }
+
+    .nav-item--disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
     }
 
     .nav-icon {
