@@ -1,7 +1,9 @@
-import { Injectable, inject, resource } from '@angular/core';
+import { Injectable, inject, resource, effect } from '@angular/core';
 import { BabyService } from '../baby/baby.service';
 import { SessionService } from '../auth/session.service';
 import { SupabaseService } from '../supabase.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { RealtimeSubscription } from '../realtime/realtime.models';
 import { Feeding } from './feeding.models';
 
 @Injectable({ providedIn: 'root' })
@@ -9,6 +11,30 @@ export class FeedingService {
   private readonly supabase = inject(SupabaseService);
   private readonly baby = inject(BabyService);
   private readonly sessionService = inject(SessionService);
+  private readonly realtimeService = inject(RealtimeService);
+  private feedingSubscription: RealtimeSubscription | null = null;
+
+  constructor() {
+    effect(() => {
+      const babyId = this.baby.currentBaby()?.id;
+
+      // Cleanup previous subscription
+      this.feedingSubscription?.unsubscribe();
+      this.feedingSubscription = null;
+
+      if (!babyId) return;
+
+      this.feedingSubscription = this.realtimeService.subscribe(
+        `feedings-baby-${babyId}`,
+        'feedings',
+        `baby_id=eq.${babyId}`,
+        () => {
+          this.lastFeeding.reload();
+          this.ongoingFeeding.reload();
+        },
+      );
+    });
+  }
 
   readonly lastFeeding = resource({
     params: () => ({ babyId: this.baby.currentBaby()?.id ?? null }),
