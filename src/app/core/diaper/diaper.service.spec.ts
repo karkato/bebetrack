@@ -11,15 +11,8 @@ import { Baby } from '../baby/baby.models';
 import { MOCK_BABY, MOCK_BABY_B } from '../baby/testing/baby-fixtures';
 import { makeSessionMock } from '../auth/testing/session-mock';
 import { makeRealtimeMock, makeCapturingRealtimeMock } from '../realtime/testing/realtime-mock';
-
-const MOCK_DIAPER: Diaper = {
-  id: 'd-1',
-  baby_id: 'b-1',
-  at: '2026-01-01T10:00:00Z',
-  kind: 'wet',
-  created_by: 'user-1',
-  created_at: '2026-01-01T10:00:00Z',
-};
+import { MOCK_DIAPER } from './testing/diaper-fixtures';
+import { makeBabyMock } from '../baby/testing/baby-mock';
 
 function makeSupabaseMock(options?: {
   returnedDiaper?: Diaper | null;
@@ -59,14 +52,6 @@ function makeSupabaseMock(options?: {
     },
     _mocks: { insertFn, insertSelectFn, insertSingleFn, deleteFn, eqFn, refetchSelectFn, refetchEqFn, refetchSingleFn, rpcFn },
   } as unknown as SupabaseService & { _mocks: Record<string, ReturnType<typeof vi.fn>> };
-}
-
-function makeBabyMock(baby: Baby | null) {
-  const babySignal = signal(baby);
-  return {
-    _signal: babySignal,
-    currentBaby: babySignal.asReadonly(),
-  } as unknown as BabyService & { _signal: ReturnType<typeof signal<Baby | null>> };
 }
 
 // ── mutation tests ────────────────────────────────────────────────────────────

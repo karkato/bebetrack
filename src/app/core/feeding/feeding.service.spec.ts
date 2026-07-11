@@ -11,17 +11,8 @@ import { Baby } from '../baby/baby.models';
 import { MOCK_BABY, MOCK_BABY_B } from '../baby/testing/baby-fixtures';
 import { makeSessionMock } from '../auth/testing/session-mock';
 import { makeRealtimeMock, makeCapturingRealtimeMock } from '../realtime/testing/realtime-mock';
-
-const MOCK_FEEDING: Feeding = {
-  id: 'f-1',
-  baby_id: 'b-1',
-  started_at: '2026-01-01T08:00:00Z',
-  ended_at: '2026-01-01T08:20:00Z',
-  type: 'breast_left',
-  amount_ml: null,
-  created_by: 'user-1',
-  created_at: '2026-01-01T08:00:00Z',
-};
+import { MOCK_FEEDING } from './testing/feeding-fixtures';
+import { makeBabyMock } from '../baby/testing/baby-mock';
 
 /** Builds a Supabase mock for the lastFeeding/ongoingFeeding read path */
 function makeReadSupabaseMock(returnedFeeding: Feeding | null) {
@@ -37,14 +28,6 @@ function makeReadSupabaseMock(returnedFeeding: Feeding | null) {
       from: vi.fn().mockReturnValue({ select: selectFn }),
     },
   } as unknown as SupabaseService;
-}
-
-function makeBabyMock(baby: Baby | null) {
-  const babySignal = signal(baby);
-  return {
-    _signal: babySignal,
-    currentBaby: babySignal.asReadonly(),
-  } as unknown as BabyService & { _signal: ReturnType<typeof signal<Baby | null>> };
 }
 
 // ── resource tests ────────────────────────────────────────────────────────────
