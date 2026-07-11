@@ -15,5 +15,8 @@ const content = `export const environment = {
 };
 `;
 
+// Angular fileReplacements needs environment.ts to exist as the "source" file.
+// In production builds it is replaced by environment.prod.ts — both get prod values.
+writeFileSync('src/environments/environment.ts', content);
 writeFileSync('src/environments/environment.prod.ts', content);
-console.log('environment.prod.ts generated.');
+console.log('environment.ts and environment.prod.ts generated.');
