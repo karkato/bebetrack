@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormField, form, schema, required, minLength } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
@@ -162,6 +162,15 @@ export class OnboardingComponent {
 
   readonly loading = signal(false);
   readonly createError = signal<string | null>(null);
+
+  constructor() {
+    // If household loads after magic link auth, skip onboarding
+    effect(() => {
+      if (this.householdService.hasHousehold()) {
+        void this.router.navigate(['/']);
+      }
+    });
+  }
 
   readonly inviteInput = signal('');
   readonly joinLoading = signal(false);

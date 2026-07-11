@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
+import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { SessionService } from '../auth/session.service';
 import { SupabaseService } from '../supabase.service';
 import { Household } from './household.models';
@@ -11,6 +11,17 @@ export class HouseholdService {
   private readonly _household = signal<Household | null>(null);
   readonly household = this._household.asReadonly();
   readonly hasHousehold = computed(() => this._household() !== null);
+
+  constructor() {
+    // Reload household whenever auth state changes (covers magic link late auth on mobile)
+    effect(() => {
+      if (this.session.isAuthenticated()) {
+        void this.loadCurrentHousehold();
+      } else {
+        this._household.set(null);
+      }
+    });
+  }
 
   async initialize(): Promise<void> {
     if (!this.session.isAuthenticated()) return;
