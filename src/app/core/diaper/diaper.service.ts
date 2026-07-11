@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, effect } from '@angular/core';
+import { Injectable, inject, effect, resource } from '@angular/core';
 import { SessionService } from '../auth/session.service';
 import { SupabaseService } from '../supabase.service';
 import { BabyService } from '../baby/baby.service';
@@ -12,9 +12,24 @@ export class DiaperService {
   private readonly baby = inject(BabyService);
   private readonly realtimeService = inject(RealtimeService);
 
-  // Mi1: private writable signal, expose readonly
-  private readonly _diaperInvalidated = signal(0);
-  readonly diaperInvalidated = this._diaperInvalidated.asReadonly();
+  /** Last 7 days of diapers for the current baby, sorted by at desc */
+  readonly recentDiapers = resource({
+    params: () => ({ babyId: this.baby.currentBaby()?.id ?? null }),
+    loader: async ({ params }) => {
+      if (!params.babyId) return [] as Diaper[];
+      // Use local day J-8 to cover UTC±N offsets; computeWeekStats filters the excess
+      const since = new Date();
+      since.setDate(since.getDate() - 8);
+      since.setHours(0, 0, 0, 0);
+      const { data } = await this.supabase.client
+        .from('diapers')
+        .select('*')
+        .eq('baby_id', params.babyId)
+        .gte('at', since.toISOString())
+        .order('at', { ascending: false });
+      return (data ?? []) as Diaper[];
+    },
+  });
 
   constructor() {
     // M3: use onCleanup for robust subscription lifecycle management
@@ -27,7 +42,7 @@ export class DiaperService {
         'diapers',
         `baby_id=eq.${babyId}`,
         () => {
-          this._diaperInvalidated.update(n => n + 1);
+          this.recentDiapers.reload();
         },
       );
 

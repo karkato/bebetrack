@@ -25,6 +25,7 @@ export class FeedingService {
         () => {
           this.lastFeeding.reload();
           this.ongoingFeeding.reload();
+          this.recentFeedings.reload();
         },
       );
 
@@ -60,6 +61,25 @@ export class FeedingService {
         .limit(1)
         .maybeSingle();
       return data as Feeding | null;
+    },
+  });
+
+  /** Last 7 days of feedings for the current baby, sorted by started_at desc */
+  readonly recentFeedings = resource({
+    params: () => ({ babyId: this.baby.currentBaby()?.id ?? null }),
+    loader: async ({ params }) => {
+      if (!params.babyId) return [] as Feeding[];
+      // Use local day J-8 to cover UTC±N offsets; computeWeekStats filters the excess
+      const since = new Date();
+      since.setDate(since.getDate() - 8);
+      since.setHours(0, 0, 0, 0);
+      const { data } = await this.supabase.client
+        .from('feedings')
+        .select('*')
+        .eq('baby_id', params.babyId)
+        .gte('started_at', since.toISOString())
+        .order('started_at', { ascending: false });
+      return (data ?? []) as Feeding[];
     },
   });
 
