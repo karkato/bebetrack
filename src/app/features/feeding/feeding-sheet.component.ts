@@ -28,38 +28,98 @@ export interface FeedingSheetData {
   imports: [MatButtonModule],
   template: `
     @if (mode() === 'stop') {
-      <!-- Mode STOP : tétée en cours -->
-      <div class="sheet-header">Tétée en cours</div>
-      <div class="chrono">{{ chronoLabel() }}</div>
-      <button mat-flat-button (click)="stopFeeding()">Arrêter la tétée</button>
+      <div class="sheet-content">
+        <div class="sheet-header">Tétée en cours</div>
+        <div class="chrono">{{ chronoLabel() }}</div>
+        <button mat-flat-button class="full-width" (click)="stopFeeding()">Arrêter la tétée</button>
+      </div>
     } @else {
-      <!-- Mode START -->
-      @if (activeView() === 'breast') {
-        <!-- Vue sein -->
-        <div class="side-buttons">
-          <button mat-flat-button
-            [class.selected]="selectedSide() === 'breast_left'"
-            (click)="selectSide('breast_left')">Gauche</button>
-          <button mat-flat-button
-            [class.selected]="selectedSide() === 'breast_right'"
-            (click)="selectSide('breast_right')">Droite</button>
-        </div>
-        <button mat-flat-button (click)="startFeeding()" [disabled]="!selectedSide()">Démarrer</button>
-        @if (data.preference === 'mixed') {
-          <button mat-button (click)="activeView.set('bottle')">Biberon</button>
-        }
-      } @else {
-        <!-- Vue biberon -->
-        <div>
-          <label>Quantité (ml)
-            <input type="number" min="1" [value]="amountMl()" (input)="amountMl.set(+$any($event.target).value)" />
+      <div class="sheet-content">
+        @if (activeView() === 'breast') {
+          <div class="side-buttons">
+            <button mat-flat-button
+              [class.selected]="selectedSide() === 'breast_left'"
+              (click)="selectSide('breast_left')">Gauche</button>
+            <button mat-flat-button
+              [class.selected]="selectedSide() === 'breast_right'"
+              (click)="selectSide('breast_right')">Droite</button>
+          </div>
+          <button mat-flat-button class="full-width" (click)="startFeeding()" [disabled]="!selectedSide()">Démarrer</button>
+          @if (data.preference === 'mixed') {
+            <button mat-button class="full-width" (click)="activeView.set('bottle')">Biberon</button>
+          }
+        } @else {
+          <label class="amount-label">
+            Quantité (ml)
+            <input class="amount-input" type="number" min="1" [value]="amountMl()" (input)="amountMl.set(+$any($event.target).value)" />
           </label>
-        </div>
-        <button mat-flat-button (click)="recordBottle()" [disabled]="amountMl() < 1">Enregistrer</button>
-        @if (data.preference === 'mixed') {
-          <button mat-button (click)="activeView.set('breast')">Allaitement</button>
+          <button mat-flat-button class="full-width" (click)="recordBottle()" [disabled]="amountMl() < 1">Enregistrer</button>
+          @if (data.preference === 'mixed') {
+            <button mat-button class="full-width" (click)="activeView.set('breast')">Allaitement</button>
+          }
         }
-      }
+      </div>
+    }
+  `,
+  styles: `
+    .sheet-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 24px 16px 32px;
+    }
+
+    .sheet-header {
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      color: var(--mat-sys-on-surface);
+    }
+
+    .chrono {
+      font-size: 3rem;
+      font-weight: 300;
+      text-align: center;
+      letter-spacing: 0.05em;
+      color: var(--mat-sys-primary);
+    }
+
+    .side-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    .side-buttons button {
+      flex: 1;
+    }
+
+    .side-buttons button.selected {
+      background-color: var(--mat-sys-primary);
+      color: var(--mat-sys-on-primary);
+    }
+
+    .full-width {
+      width: 100%;
+    }
+
+    .amount-label {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .amount-input {
+      width: 100%;
+      padding: 12px;
+      font-size: 1.25rem;
+      text-align: center;
+      background: var(--mat-sys-surface-container);
+      border: 1px solid var(--mat-sys-outline-variant);
+      border-radius: 8px;
+      color: var(--mat-sys-on-surface);
+      box-sizing: border-box;
     }
   `,
 })
