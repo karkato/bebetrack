@@ -8,6 +8,16 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { HouseholdService } from '../../core/household/household.service';
 
+function extractToken(input: string): string | null {
+  const trimmed = input.trim();
+  // Full URL: https://…/join/<token>
+  const match = trimmed.match(/\/join\/([a-zA-Z0-9_-]+)/);
+  if (match) return match[1];
+  // Raw token (no slash)
+  if (/^[a-zA-Z0-9_-]+$/.test(trimmed)) return trimmed;
+  return null;
+}
+
 interface CreateHouseholdModel {
   name: string;
 }
@@ -59,6 +69,33 @@ interface CreateHouseholdModel {
               }
             </button>
           </form>
+
+          <div class="divider"><span>ou</span></div>
+
+          <div class="join-section">
+            <p class="join-hint">Votre partenaire vous a envoyé un lien d'invitation ?</p>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Coller le lien d'invitation</mat-label>
+              <input
+                matInput
+                type="text"
+                [value]="inviteInput()"
+                (input)="inviteInput.set($any($event.target).value)"
+                placeholder="https://… ou token"
+                autocomplete="off"
+              />
+            </mat-form-field>
+            @if (joinError()) {
+              <p class="form-error">{{ joinError() }}</p>
+            }
+            <button mat-stroked-button class="full-width" (click)="onJoin()" [disabled]="joinLoading() || !inviteInput().trim()">
+              @if (joinLoading()) {
+                <mat-spinner diameter="20" />
+              } @else {
+                Rejoindre le foyer
+              }
+            </button>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -92,6 +129,31 @@ interface CreateHouseholdModel {
     button[mat-flat-button] {
       width: 100%;
     }
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 16px 0;
+      color: var(--mat-sys-on-surface-variant);
+      font-size: 0.875rem;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--mat-sys-outline-variant);
+    }
+    .join-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 8px;
+    }
+    .join-hint {
+      margin: 0;
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+    }
   `,
 })
 export class OnboardingComponent {
@@ -100,6 +162,10 @@ export class OnboardingComponent {
 
   readonly loading = signal(false);
   readonly createError = signal<string | null>(null);
+
+  readonly inviteInput = signal('');
+  readonly joinLoading = signal(false);
+  readonly joinError = signal<string | null>(null);
 
   private readonly model = signal<CreateHouseholdModel>({ name: '' });
 
@@ -110,6 +176,24 @@ export class OnboardingComponent {
       minLength(f.name, 2);
     }),
   );
+
+  async onJoin(): Promise<void> {
+    const token = extractToken(this.inviteInput());
+    if (!token) {
+      this.joinError.set('Lien invalide — colle l\'URL complète ou le token reçu.');
+      return;
+    }
+    this.joinLoading.set(true);
+    this.joinError.set(null);
+    try {
+      await this.householdService.acceptInvite(token);
+      await this.router.navigate(['/']);
+    } catch {
+      this.joinError.set('Lien invalide ou expiré. Demande un nouveau lien à ton partenaire.');
+    } finally {
+      this.joinLoading.set(false);
+    }
+  }
 
   async onCreate(event: Event): Promise<void> {
     event.preventDefault();

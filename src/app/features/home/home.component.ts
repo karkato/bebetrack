@@ -14,6 +14,7 @@ import { DiaperService } from '../../core/diaper/diaper.service';
 import { DiaperKind } from '../../core/diaper/diaper.models';
 import { FeedingService } from '../../core/feeding/feeding.service';
 import { FeedingPreference } from '../../core/baby/baby.models';
+import { HouseholdService } from '../../core/household/household.service';
 import { FeedingSheetComponent, FeedingSheetData } from '../feeding/feeding-sheet.component';
 import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
 
@@ -78,6 +79,13 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
             {{ babyFormLoading() ? 'Ajout en cours…' : 'Ajouter le bébé' }}
           </button>
         </form>
+
+        <div class="invite-section">
+          <p class="invite-hint">Invitez votre partenaire à rejoindre ce foyer</p>
+          <button mat-stroked-button class="submit-btn" (click)="shareInvite()" [disabled]="inviteLoading()">
+            {{ inviteLoading() ? 'Génération…' : '🔗 Inviter mon partenaire' }}
+          </button>
+        </div>
       </div>
     } @else {
       <div class="home-screen">
@@ -193,6 +201,22 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
       font-size: 1rem;
     }
 
+    .invite-section {
+      margin-top: 24px;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .invite-hint {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--mat-sys-on-surface-variant);
+      text-align: center;
+    }
+
     /* ── Main screen ── */
     .home-screen {
       display: flex;
@@ -298,9 +322,12 @@ export class HomeComponent {
   readonly baby = inject(BabyService);
   readonly feedingService = inject(FeedingService);
   readonly diaperService = inject(DiaperService);
+  private readonly householdService = inject(HouseholdService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly bottomSheet = inject(MatBottomSheet);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly inviteLoading = signal(false);
 
   // ── Timer (1-minute tick for elapsed display) ──
   private readonly now = signal(Date.now());
@@ -324,6 +351,25 @@ export class HomeComponent {
     const elapsed = formatElapsed(new Date(feeding.started_at), now);
     return `Dernière tétée ${elapsed} (${typeLabel})`;
   });
+
+  // ── Invite ──
+  async shareInvite(): Promise<void> {
+    this.inviteLoading.set(true);
+    try {
+      const token = await this.householdService.createInvite();
+      const url = `${window.location.origin}/join/${token}`;
+      if (navigator.share) {
+        await navigator.share({ title: 'BébéTrack — Rejoins notre foyer', url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        this.snackBar.open('Lien copié dans le presse-papier', undefined, { duration: 3000 });
+      }
+    } catch {
+      this.snackBar.open('Impossible de générer le lien', undefined, { duration: 3000 });
+    } finally {
+      this.inviteLoading.set(false);
+    }
+  }
 
   // ── Empty state form ──
   readonly babyName = signal('');
