@@ -33,6 +33,12 @@ export const routes: Routes = [
     canMatch: [authGuard, householdGuard],
   },
   {
+    path: 'timeline',
+    loadComponent: () =>
+      import('./features/timeline/timeline.component').then(m => m.TimelineComponent),
+    canMatch: [authGuard, householdGuard],
+  },
+  {
     path: '**',
     redirectTo: '',
   },
