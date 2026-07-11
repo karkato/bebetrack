@@ -245,6 +245,7 @@ export class TimelineComponent {
   }
 
   formatDay(dateStr: string): string {
+    // T12:00:00 without Z = noon local time — prevents date shifting across midnight for any UTC±N timezone
     const d = new Date(dateStr + 'T12:00:00');
     return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
   }

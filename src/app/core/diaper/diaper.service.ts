@@ -21,8 +21,10 @@ export class DiaperService {
     params: () => ({ babyId: this.baby.currentBaby()?.id ?? null }),
     loader: async ({ params }) => {
       if (!params.babyId) return [] as Diaper[];
+      // Use local day J-8 to cover UTC±N offsets; computeWeekStats filters the excess
       const since = new Date();
-      since.setDate(since.getDate() - 7);
+      since.setDate(since.getDate() - 8);
+      since.setHours(0, 0, 0, 0);
       const { data } = await this.supabase.client
         .from('diapers')
         .select('*')
