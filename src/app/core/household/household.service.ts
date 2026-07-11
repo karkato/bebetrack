@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { SessionService } from '../auth/session.service';
 import { SupabaseService } from '../supabase.service';
-import { Household } from './household.models';
+import { Household, HouseholdMemberInfo } from './household.models';
 
 @Injectable({ providedIn: 'root' })
 export class HouseholdService {
@@ -48,6 +48,14 @@ export class HouseholdService {
     if (error) throw error;
     await this.loadCurrentHousehold();
     return data as string;
+  }
+
+  async getMembers(): Promise<HouseholdMemberInfo[]> {
+    const householdId = this._household()?.id;
+    if (!householdId) return [];
+    const { data, error } = await this.supabase.client.rpc('get_household_members', { hid: householdId });
+    if (error) throw error;
+    return (data ?? []) as HouseholdMemberInfo[];
   }
 
   async createInvite(): Promise<string> {

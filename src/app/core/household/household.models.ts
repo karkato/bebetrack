@@ -10,6 +10,12 @@ export interface HouseholdMember {
   role: 'parent';
 }
 
+export interface HouseholdMemberInfo {
+  user_id: string;
+  email: string;
+  role: string;
+}
+
 export interface HouseholdInvite {
   id: string;
   household_id: string;

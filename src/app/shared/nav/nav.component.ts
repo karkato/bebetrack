@@ -20,6 +20,10 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         <span class="nav-icon">timeline</span>
         <span class="nav-label">Timeline</span>
       </a>
+      <a routerLink="/foyer" routerLinkActive="active">
+        <span class="nav-icon">group</span>
+        <span class="nav-label">Foyer</span>
+      </a>
     </nav>
   `,
   styles: `
