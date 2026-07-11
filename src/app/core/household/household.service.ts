@@ -50,6 +50,17 @@ export class HouseholdService {
     return data as string;
   }
 
+  async renameHousehold(name: string): Promise<void> {
+    const householdId = this._household()?.id;
+    if (!householdId) throw new Error('No household');
+    const { error } = await this.supabase.client
+      .from('households')
+      .update({ name: name.trim() })
+      .eq('id', householdId);
+    if (error) throw error;
+    this._household.update(h => (h ? { ...h, name: name.trim() } : null));
+  }
+
   async getMembers(): Promise<HouseholdMemberInfo[]> {
     const householdId = this._household()?.id;
     if (!householdId) return [];

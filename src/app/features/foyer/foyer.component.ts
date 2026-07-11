@@ -1,6 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  ViewChild,
   computed,
   inject,
   resource,
@@ -21,7 +23,24 @@ import { SessionService } from '../../core/auth/session.service';
   template: `
     <div class="foyer-container">
       <header class="foyer-header">
-        <h1>{{ householdService.household()?.name ?? 'Mon foyer' }}</h1>
+        @if (editingName()) {
+          <input
+            #nameInput
+            class="name-input"
+            type="text"
+            [value]="nameInput.value || householdService.household()?.name"
+            (keydown.enter)="saveName(nameInput.value)"
+            (blur)="saveName(nameInput.value)"
+            (keydown.escape)="editingName.set(false)"
+          />
+        } @else {
+          <h1>
+            {{ householdService.household()?.name ?? 'Mon foyer' }}
+            <button mat-icon-button class="edit-btn" (click)="startEditName()">
+              <mat-icon>edit</mat-icon>
+            </button>
+          </h1>
+        }
       </header>
 
       <section class="section">
@@ -75,9 +94,34 @@ import { SessionService } from '../../core/auth/session.service';
     }
 
     .foyer-header h1 {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       margin: 0 0 24px;
       font-size: 1.5rem;
       font-weight: 600;
+    }
+
+    .edit-btn {
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      opacity: 0.5;
+    }
+
+    .edit-btn:hover { opacity: 1; }
+
+    .name-input {
+      width: 100%;
+      margin-bottom: 24px;
+      font-size: 1.5rem;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid var(--mat-sys-primary);
+      color: var(--mat-sys-on-surface);
+      outline: none;
+      padding: 2px 4px;
     }
 
     .section {
@@ -147,8 +191,11 @@ export class FoyerComponent {
   private readonly session = inject(SessionService);
   private readonly snackBar = inject(MatSnackBar);
 
+  @ViewChild('nameInput') private readonly nameInputRef?: ElementRef<HTMLInputElement>;
+
   readonly currentUserId = computed(() => this.session.user()?.id ?? null);
   readonly canShare = signal(typeof navigator !== 'undefined' && !!navigator.share);
+  readonly editingName = signal(false);
 
   readonly members = resource({
     params: () => ({ householdId: this.householdService.household()?.id }),
@@ -160,6 +207,25 @@ export class FoyerComponent {
 
   readonly inviteUrl = signal<string | null>(null);
   readonly inviteLoading = signal(false);
+
+  startEditName(): void {
+    this.editingName.set(true);
+    setTimeout(() => {
+      const el = this.nameInputRef?.nativeElement;
+      if (el) { el.focus(); el.select(); }
+    });
+  }
+
+  async saveName(value: string): Promise<void> {
+    const trimmed = value.trim();
+    this.editingName.set(false);
+    if (!trimmed || trimmed === this.householdService.household()?.name) return;
+    try {
+      await this.householdService.renameHousehold(trimmed);
+    } catch {
+      this.snackBar.open('Impossible de renommer le foyer', undefined, { duration: 3000 });
+    }
+  }
 
   async generateInvite(): Promise<void> {
     this.inviteLoading.set(true);
