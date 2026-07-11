@@ -82,9 +82,21 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
 
         <div class="invite-section">
           <p class="invite-hint">Invitez votre partenaire à rejoindre ce foyer</p>
-          <button mat-stroked-button class="submit-btn" (click)="shareInvite()" [disabled]="inviteLoading()">
-            {{ inviteLoading() ? 'Génération…' : '🔗 Inviter mon partenaire' }}
-          </button>
+          @if (inviteUrl()) {
+            <div class="invite-url-box">
+              <span class="invite-url-text">{{ inviteUrl() }}</span>
+              <div class="invite-url-actions">
+                <button mat-stroked-button (click)="copyInviteUrl()">Copier</button>
+                @if (canShare()) {
+                  <button mat-flat-button (click)="shareInviteUrl()">Partager</button>
+                }
+              </div>
+            </div>
+          } @else {
+            <button mat-stroked-button class="submit-btn" (click)="generateInvite()" [disabled]="inviteLoading()">
+              {{ inviteLoading() ? 'Génération…' : '🔗 Inviter mon partenaire' }}
+            </button>
+          }
         </div>
       </div>
     } @else {
@@ -217,6 +229,32 @@ import { formatElapsed, feedingTypeLabel } from '../../shared/elapsed-time';
       text-align: center;
     }
 
+    .invite-url-box {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--mat-sys-surface-container);
+      border: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .invite-url-text {
+      font-size: 0.75rem;
+      word-break: break-all;
+      color: var(--mat-sys-on-surface-variant);
+      font-family: monospace;
+    }
+
+    .invite-url-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .invite-url-actions button {
+      flex: 1;
+    }
+
     /* ── Main screen ── */
     .home-screen {
       display: flex;
@@ -328,6 +366,8 @@ export class HomeComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly inviteLoading = signal(false);
+  readonly inviteUrl = signal<string | null>(null);
+  readonly canShare = signal(typeof navigator !== 'undefined' && !!navigator.share);
 
   // ── Timer (1-minute tick for elapsed display) ──
   private readonly now = signal(Date.now());
@@ -353,22 +393,29 @@ export class HomeComponent {
   });
 
   // ── Invite ──
-  async shareInvite(): Promise<void> {
+  async generateInvite(): Promise<void> {
     this.inviteLoading.set(true);
     try {
       const token = await this.householdService.createInvite();
-      const url = `${window.location.origin}/join/${token}`;
-      if (navigator.share) {
-        await navigator.share({ title: 'BébéTrack — Rejoins notre foyer', url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        this.snackBar.open('Lien copié dans le presse-papier', undefined, { duration: 3000 });
-      }
+      this.inviteUrl.set(`${window.location.origin}/join/${token}`);
     } catch {
       this.snackBar.open('Impossible de générer le lien', undefined, { duration: 3000 });
     } finally {
       this.inviteLoading.set(false);
     }
+  }
+
+  async copyInviteUrl(): Promise<void> {
+    const url = this.inviteUrl();
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    this.snackBar.open('Lien copié !', undefined, { duration: 2000 });
+  }
+
+  async shareInviteUrl(): Promise<void> {
+    const url = this.inviteUrl();
+    if (!url) return;
+    await navigator.share({ title: 'BébéTrack — Rejoins notre foyer', url });
   }
 
   // ── Empty state form ──
