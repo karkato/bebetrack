@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, effect, resource } from '@angular/core';
+import { Injectable, inject, effect, resource } from '@angular/core';
 import { SessionService } from '../auth/session.service';
 import { SupabaseService } from '../supabase.service';
 import { BabyService } from '../baby/baby.service';
@@ -11,10 +11,6 @@ export class DiaperService {
   private readonly session = inject(SessionService);
   private readonly baby = inject(BabyService);
   private readonly realtimeService = inject(RealtimeService);
-
-  // Mi1: private writable signal, expose readonly
-  private readonly _diaperInvalidated = signal(0);
-  readonly diaperInvalidated = this._diaperInvalidated.asReadonly();
 
   /** Last 7 days of diapers for the current baby, sorted by at desc */
   readonly recentDiapers = resource({
@@ -46,7 +42,6 @@ export class DiaperService {
         'diapers',
         `baby_id=eq.${babyId}`,
         () => {
-          this._diaperInvalidated.update(n => n + 1);
           this.recentDiapers.reload();
         },
       );
